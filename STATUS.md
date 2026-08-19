@@ -62,6 +62,33 @@
 - Полноценный летающий корабль
 - Настоящий fluid solver
 
+## DEVICE STABILIZATION PASS
+
+Broken baseline: `8e45d1e3fd463eaf93c60688d7ab7a13ea51ae30`
+
+Симптом: freeze через 5–7 с gameplay на Honor Magic 8 Pro; камера уходит под terrain.
+
+Root cause (наиболее вероятная, по аудиту кода, не по device trace):
+
+1. Каждый кадр создавался новый `RAPIER.Ray` в camera/interact. Rapier JS обёртки держат WASM-память; на WebView GC опаздывает → рост кучи и зависание через несколько секунд.
+2. Каждый footstep/`_noise` выделял новый `AudioBuffer` + BufferSource + Filter + Gain. Ходьба = шторм audio nodes.
+3. `daynight._eval`, `sky.update`, `camera.update`, `physics.sync.apply` плодили `new Color/Vector3/Quaternion` каждый frame.
+4. Camera collision не проверяла «камера ниже heightmap» и слабо отталкивалась от terrain.
+
+Fix:
+
+- один переиспользуемый Rapier.Ray;
+- один шумовой AudioBuffer + cap живых SFX-нод (18);
+- scratch vectors/colors;
+- particle pool + hard cap 220;
+- physics step без EventQueue, accumulator clamp 0.05 / max 3 substeps / backlog reset;
+- один RAF, cancel перед стартом;
+- spring-arm: Rapier ray + запрет y < terrain+0.85 + плавное возвращение дистанции;
+- fade ствола/кроны, если дерево между камерой и игроком;
+- визуальный объём острова: irregular cliff shell + скальное днище (без второго physics terrain).
+
+Остаточные риски: без device trace нельзя исключить GPU/WebView hang от InstancedMesh grass. Soak 60s в этой среде без WebGL не прогонялся.
+
 ## Known problems
 
 - Rapier WASM раздувает bundle; preview HTML будет большим.

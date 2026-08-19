@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const KINDS = {
-  pollen: { size: 0.08, color: 0xe8d48a, life: 6, gravity: 0.02 },
+  pollen: { size: 0.08, color: 0xc8b46a, life: 6, gravity: 0.02 },
   firefly: { size: 0.12, color: 0xc9e07a, life: 5, gravity: 0 },
   chip: { size: 0.1, color: 0x8a6238, life: 0.9, gravity: 9 },
   grit: { size: 0.08, color: 0x8a8478, life: 0.8, gravity: 10 },
@@ -13,12 +13,13 @@ const KINDS = {
   fire: { size: 0.09, color: 0xff8a3a, life: 0.55, gravity: -2.4 },
 };
 
+const _c = new THREE.Color();
+
 export class Particles {
   constructor(scene, quality = 1) {
     this.scene = scene;
     this.quality = quality;
-    this.pools = {};
-    this.max = Math.floor(420 * quality);
+    this.max = Math.min(220, Math.floor(280 * quality));
     const geo = new THREE.BufferGeometry();
     const pos = new Float32Array(this.max * 3);
     const col = new Float32Array(this.max * 3);
@@ -31,11 +32,12 @@ export class Particles {
     this.col = col;
     this.size = size;
     this.items = [];
+    this.free = [];
     this.mat = new THREE.PointsMaterial({
-      size: 0.12,
+      size: 0.1,
       vertexColors: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.8,
       depthWrite: false,
       sizeAttenuation: true,
     });
@@ -43,33 +45,39 @@ export class Particles {
     this.points.frustumCulled = false;
     this.points.userData.kind = 'particles';
     scene.add(this.points);
+    this._emitAcc = 0;
+  }
+
+  _take() {
+    return this.free.pop() || {
+      x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0, max: 1, size: 0.1, gravity: 0, r: 1, g: 1, b: 1,
+    };
   }
 
   emit(kind, origin, count = 8, vel = null) {
     const spec = KINDS[kind] || KINDS.dust;
     const n = Math.max(1, Math.floor(count * this.quality));
     for (let i = 0; i < n; i++) {
-      if (this.items.length >= this.max) this.items.shift();
-      const dir = vel
-        ? vel.clone().add(new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.6, Math.random() - 0.5))
-        : new THREE.Vector3((Math.random() - 0.5) * 2, Math.random() * 2, (Math.random() - 0.5) * 2);
-      const c = new THREE.Color(spec.color);
-      c.offsetHSL((Math.random() - 0.5) * 0.04, 0, (Math.random() - 0.5) * 0.08);
-      this.items.push({
-        x: origin.x + (Math.random() - 0.5) * 0.2,
-        y: origin.y + (Math.random() - 0.5) * 0.2,
-        z: origin.z + (Math.random() - 0.5) * 0.2,
-        vx: dir.x,
-        vy: dir.y,
-        vz: dir.z,
-        life: spec.life * (0.7 + Math.random() * 0.5),
-        max: spec.life,
-        size: spec.size * (0.7 + Math.random() * 0.6),
-        gravity: spec.gravity,
-        r: c.r,
-        g: c.g,
-        b: c.b,
-      });
+      if (this.items.length >= this.max) {
+        const old = this.items.shift();
+        this.free.push(old);
+      }
+      const p = this._take();
+      p.x = origin.x + (Math.random() - 0.5) * 0.2;
+      p.y = origin.y + (Math.random() - 0.5) * 0.2;
+      p.z = origin.z + (Math.random() - 0.5) * 0.2;
+      p.vx = (vel ? vel.x : 0) + (Math.random() - 0.5) * 2;
+      p.vy = (vel ? vel.y : 0.4) + Math.random() * 1.2;
+      p.vz = (vel ? vel.z : 0) + (Math.random() - 0.5) * 2;
+      p.life = spec.life * (0.7 + Math.random() * 0.5);
+      p.max = spec.life;
+      p.size = spec.size * (0.7 + Math.random() * 0.6);
+      p.gravity = spec.gravity;
+      _c.setHex(spec.color);
+      p.r = _c.r;
+      p.g = _c.g;
+      p.b = _c.b;
+      this.items.push(p);
     }
   }
 
@@ -79,6 +87,7 @@ export class Particles {
       const p = this.items[i];
       p.life -= dt;
       if (p.life <= 0) {
+        this.free.push(this.items[i]);
         this.items.splice(i, 1);
         continue;
       }
@@ -87,13 +96,27 @@ export class Particles {
       p.y += p.vy * dt;
       p.z += (p.vz + w.z * 0.15) * dt;
     }
-    if (night > 0.55 && this.items.length < this.max * 0.6) {
-      if (Math.random() < dt * 6 * this.quality) {
-        this.emit('firefly', new THREE.Vector3((Math.random() - 0.5) * 40, 6 + Math.random() * 4, (Math.random() - 0.5) * 40), 1, new THREE.Vector3((Math.random() - 0.5) * 0.4, 0.2, (Math.random() - 0.5) * 0.4));
+    this._emitAcc += dt;
+    if (this._emitAcc > 0.12) {
+      this._emitAcc = 0;
+      if (night > 0.55 && this.items.length < this.max * 0.45 && Math.random() < 0.35 * this.quality) {
+        _tmp.x = (Math.random() - 0.5) * 40;
+        _tmp.y = 6 + Math.random() * 4;
+        _tmp.z = (Math.random() - 0.5) * 40;
+        _vel.x = (Math.random() - 0.5) * 0.4;
+        _vel.y = 0.2;
+        _vel.z = (Math.random() - 0.5) * 0.4;
+        this.emit('firefly', _tmp, 1, _vel);
       }
-    }
-    if (rain && Math.random() < dt * 40 * this.quality) {
-      this.emit('rain', new THREE.Vector3((Math.random() - 0.5) * 50, 18, (Math.random() - 0.5) * 50), 4, new THREE.Vector3(w.x * 0.3, -8, w.z * 0.3));
+      if (rain && this.items.length < this.max * 0.7) {
+        _tmp.x = (Math.random() - 0.5) * 50;
+        _tmp.y = 18;
+        _tmp.z = (Math.random() - 0.5) * 50;
+        _vel.x = w.x * 0.3;
+        _vel.y = -8;
+        _vel.z = w.z * 0.3;
+        this.emit('rain', _tmp, 3, _vel);
+      }
     }
     const n = this.items.length;
     for (let i = 0; i < n; i++) {
@@ -117,3 +140,6 @@ export class Particles {
     this.mat.dispose();
   }
 }
+
+const _tmp = { x: 0, y: 0, z: 0 };
+const _vel = { x: 0, y: 0, z: 0 };

@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { HIT, PLAYER } from '../config.js';
 
+const _dir = new THREE.Vector3();
+const _from = new THREE.Vector3();
+
 export class Interact {
   constructor(game) {
     this.game = game;

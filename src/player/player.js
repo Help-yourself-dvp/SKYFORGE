@@ -3,6 +3,11 @@ import { RAPIER } from '../physics/world.js';
 import { PLAYER } from '../config.js';
 import { playerFilter } from '../physics/materials.js';
 
+const _wish = new THREE.Vector3();
+const _hold = new THREE.Vector3();
+const _throwDir = new THREE.Vector3();
+const _scarf = new THREE.Vector3();
+
 export class Player {
   constructor(game) {
     this.game = game;
@@ -121,12 +126,11 @@ export class Player {
 
     const axis = input.axis || { x: 0, y: 0 };
     const fwd = cam.forward();
-    const right = cam.right();
-    const wish = new THREE.Vector3();
-    wish.addScaledVector(fwd, axis.y);
-    wish.addScaledVector(right, axis.x);
-    const moving = wish.length() > 0.05;
-    if (moving) wish.normalize();
+    const rx = fwd.z;
+    const rz = -fwd.x;
+    _wish.set(fwd.x * axis.y + rx * axis.x, 0, fwd.z * axis.y + rz * axis.x);
+    const moving = _wish.length() > 0.05;
+    if (moving) _wish.normalize();
 
     const grounded = this.controller.computedGrounded();
     if (grounded) {
@@ -153,8 +157,8 @@ export class Player {
 
     const spd = (this.game.input.keys.ShiftLeft ? PLAYER.runSpeed : PLAYER.walkSpeed);
     const control = this.grounded ? 1 : PLAYER.airControl;
-    const vx = wish.x * spd * control;
-    const vz = wish.z * spd * control;
+    const vx = _wish.x * spd * control;
+    const vz = _wish.z * spd * control;
     const desired = { x: vx * dt, y: this.vy * dt, z: vz * dt };
     this.controller.computeColliderMovement(this.collider, desired);
     const mv = this.controller.computedMovement();
@@ -217,11 +221,11 @@ export class Player {
     const wind = this.game.wind.vector;
     for (let i = 0; i < this.scarf.length; i++) {
       const s = this.scarf[i];
-      const target = s.rest.clone();
-      target.x += wind.x * 0.04 * (i + 1);
-      target.z -= 0.04 * i + wind.z * 0.03 * (i + 1);
-      target.y -= i * 0.02;
-      s.mesh.position.lerp(target, 1 - Math.pow(0.02, dt));
+      _scarf.copy(s.rest);
+      _scarf.x += wind.x * 0.04 * (i + 1);
+      _scarf.z -= 0.04 * i + wind.z * 0.03 * (i + 1);
+      _scarf.y -= i * 0.02;
+      s.mesh.position.lerp(_scarf, 1 - Math.pow(0.02, dt));
     }
   }
 
@@ -231,7 +235,11 @@ export class Player {
       this.charging = false;
       return;
     }
-    const hold = this.position.clone().add(new THREE.Vector3(0, 1.25, 0)).add(cam.forward().multiplyScalar(1.15));
+    const hold = _hold.copy(this.position);
+    hold.y += 1.25;
+    const cf = cam.forward();
+    hold.x += cf.x * 1.15;
+    hold.z += cf.z * 1.15;
     const t = this.carry.body.translation();
     const dx = hold.x - t.x;
     const dy = hold.y - t.y;
@@ -263,7 +271,7 @@ export class Player {
   throw(cam) {
     if (!this.carry) return;
     const f = PLAYER.throwForceMin + (PLAYER.throwForceMax - PLAYER.throwForceMin) * this.throwCharge;
-    const dir = cam.camera.getWorldDirection(new THREE.Vector3());
+    const dir = cam.camera.getWorldDirection(_throwDir);
     const extra = this.speed * 0.35;
     this.carry.body.applyImpulse({ x: dir.x * f + extra, y: dir.y * f + 1.2, z: dir.z * f }, true);
     this.carry = null;

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SKY_FRAG, SKY_VERT } from './shaders.js';
+import { V3A, V3B, V3C, V3D, V3E } from '../scratch.js';
 
 export class Sky {
   constructor(scene) {
@@ -72,7 +73,9 @@ export class Sky {
       const a = (i / 18) * Math.PI * 2;
       const r = 46 + (i % 5) * 10;
       c.position.set(Math.cos(a) * r, 28 + (i % 4) * 4.2, Math.sin(a) * r);
-      c.scale.set(6 + (i % 3) * 2.2, 2.2 + (i % 2), 4.5 + (i % 4));
+      c.scale.set(7 + (i % 3) * 2.4, 2.6 + (i % 2) * 0.6, 5.2 + (i % 4));
+      c.castShadow = false;
+      c.receiveShadow = false;
       c.userData.kind = 'cloud';
       c.userData.baseY = c.position.y;
       c.userData.phase = i * 0.7;
@@ -92,9 +95,8 @@ export class Sky {
     this.mat.uniforms.uTime.value += dt;
     const t = day.timeOfDay;
     const ang = (t - 0.25) * Math.PI * 2;
-    const sunDir = new THREE.Vector3(Math.cos(ang), Math.sin(ang), 0.22);
-    sunDir.normalize();
-    const moonDir = sunDir.clone().multiplyScalar(-1);
+    const sunDir = V3A.set(Math.cos(ang), Math.sin(ang), 0.22).normalize();
+    const moonDir = V3B.copy(sunDir).multiplyScalar(-1);
     this.mat.uniforms.uSunDir.value.copy(sunDir);
     this.mat.uniforms.uMoonDir.value.copy(moonDir);
     this.mat.uniforms.uZenith.value.copy(day.zenith);
@@ -102,8 +104,8 @@ export class Sky {
     this.mat.uniforms.uSunColor.value.copy(day.sunColor);
     this.mat.uniforms.uNight.value = day.night;
 
-    const focus = playerPos || new THREE.Vector3();
-    this.sun.position.copy(focus).add(sunDir.clone().multiplyScalar(40));
+    const focus = playerPos || V3C.set(0, 0, 0);
+    this.sun.position.copy(focus).addScaledVector(sunDir, 40);
     this.sun.target.position.copy(focus);
     this.sun.target.updateMatrixWorld();
     this.sun.color.copy(day.sunColor);
@@ -111,10 +113,11 @@ export class Sky {
     this.hemi.intensity = day.hemiIntensity;
     this.hemi.color.setHex(0xb7d4e2).lerp(day.zenith, 0.35);
     this.hemi.groundColor.setHex(0x7a6a52);
-    this.fill.position.copy(focus).add(sunDir.clone().multiplyScalar(-24).setY(18));
+    this.fill.position.copy(focus).addScaledVector(sunDir, -24);
+    this.fill.position.y = focus.y + 18;
     this.fill.intensity = day.fillIntensity || 0.4;
     this.amb.intensity = 0.18 + (1 - day.night) * 0.1;
-    this.moon.position.copy(focus).add(moonDir.clone().multiplyScalar(30));
+    this.moon.position.copy(focus).addScaledVector(moonDir, 30);
     this.moon.intensity = day.night * 0.22;
 
     if (camPos) this.mesh.position.copy(camPos);

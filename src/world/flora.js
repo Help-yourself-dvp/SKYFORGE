@@ -25,8 +25,8 @@ export class Flora {
   _grass(island, rng) {
     const quality = this.game.gfx.quality.grass;
     const count = Math.floor(1600 * quality);
-    const geo = new THREE.PlaneGeometry(0.055, 0.26, 1, 2);
-    geo.translate(0, 0.13, 0);
+    const geo = new THREE.PlaneGeometry(0.045, 0.2, 1, 2);
+    geo.translate(0, 0.1, 0);
     const mat = new THREE.ShaderMaterial({
       vertexShader: GRASS_VERT,
       fragmentShader: GRASS_FRAG,

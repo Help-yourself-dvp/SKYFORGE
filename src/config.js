@@ -31,7 +31,7 @@ export const PLAYER = {
 
 export const CAMERA = {
   fov: 52,
-  near: 0.12,
+  near: 0.16,
   far: 420,
   distance: 5.8,
   height: 2.15,

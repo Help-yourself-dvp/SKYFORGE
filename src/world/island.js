@@ -110,6 +110,8 @@ export class Island {
       else color.setHex(0x6f8a52);
       if (slope > 1.6) color.setHex(0x8a7d6c);
       if (y < this.pond.level + 0.25 && zone === 'wet') color.setHex(0x8a7a58);
+      const rr = Math.hypot(x, z);
+      if (rr > this.radius - 8) color.lerp(new THREE.Color(0x8a6a42), THREE.MathUtils.clamp((rr - (this.radius - 8)) / 6, 0, 1));
       color.offsetHSL((this.noise.n2(x * 0.11, z * 0.11)) * 0.03, 0.04, (this.noise.n2(x * 0.2, z * 0.2)) * 0.08);
       col[i * 3] = color.r;
       col[i * 3 + 1] = color.g;

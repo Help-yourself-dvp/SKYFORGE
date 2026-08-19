@@ -31,6 +31,9 @@ import { MachineSystem } from './build/machine.js';
 import { BuildController } from './build/ghost_ctrl.js';
 import { InventoryView } from './ui/inventory.js';
 
+const _amb = { x: 0, y: 7, z: 0 };
+const _ambV = { x: 0, y: 0.15, z: 0 };
+
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
@@ -198,16 +201,21 @@ export class Game {
   }
 
   start() {
+    if (this.raf) cancelAnimationFrame(this.raf);
     this.last = performance.now();
     const loop = (now) => {
       if (this.disposed) return;
-      const dt = Math.min(0.05, (now - this.last) / 1000);
+      const dt = Math.min(0.05, Math.max(0, (now - this.last) / 1000));
       this.last = now;
       this.update(dt);
       this.render();
       this.raf = requestAnimationFrame(loop);
     };
     this.raf = requestAnimationFrame(loop);
+  }
+
+  getDiagnostics() {
+    return this.dbg?.collect?.() || null;
   }
 
   setState(s) {
@@ -489,19 +497,24 @@ export class Game {
   }
 
   _ambient(dt) {
-    if (Math.random() < dt * 0.8) {
+    if (Math.random() < dt * 0.35) {
       const a = Math.random() * Math.PI * 2;
       const r = Math.random() * 20;
-      this.gfx.particles?.emit('pollen', new THREE.Vector3(Math.cos(a) * r, 7, Math.sin(a) * r), 1, new THREE.Vector3(this.wind.vector.x * 0.2, 0.15, this.wind.vector.z * 0.2));
-    }
-    if (this.weather.rain) {
-      /* rain particles handled in Particles */
+      _amb.x = Math.cos(a) * r;
+      _amb.y = 7;
+      _amb.z = Math.sin(a) * r;
+      _ambV.x = this.wind.vector.x * 0.2;
+      _ambV.y = 0.15;
+      _ambV.z = this.wind.vector.z * 0.2;
+      this.gfx.particles?.emit('pollen', _amb, 1, _ambV);
     }
   }
 
   _horizon() {
     const vp = this.world.main.viewpoint;
-    if (!this.seenHorizon && this.player.position.distanceTo(new THREE.Vector3(vp.x, this.player.position.y, vp.z)) < 8) {
+    const dx = this.player.position.x - vp.x;
+    const dz = this.player.position.z - vp.z;
+    if (!this.seenHorizon && dx * dx + dz * dz < 64) {
       this.seenHorizon = 1;
       this.unlocks.horizon = 1;
       this.toast(PROGRESS.horizon.toast);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 const _pos = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
+const _qB = new THREE.Quaternion();
 
 export class PhysicsSync {
   constructor() {
@@ -55,10 +56,9 @@ export class PhysicsSync {
         a.y + (b.y - a.y) * alpha,
         a.z + (b.z - a.z) * alpha,
       );
-      _quat.set(a.qx, a.qy, a.qz, a.qw).slerp(
-        new THREE.Quaternion(b.qx, b.qy, b.qz, b.qw),
-        alpha,
-      );
+      _quat.set(a.qx, a.qy, a.qz, a.qw);
+      _qB.set(b.qx, b.qy, b.qz, b.qw);
+      _quat.slerp(_qB, alpha);
       ent.mesh.position.copy(_pos);
       ent.mesh.quaternion.copy(_quat);
     }

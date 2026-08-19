@@ -25,7 +25,7 @@ export class PhysicsWorld {
     this.paused = false;
     this.debug = false;
     this._id = 1;
-    this.eventQueue = new RAPIER.EventQueue(true);
+    this._ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
     this.buoyant = [];
     this.waterLevel = 4.2;
     this.pond = { x: 16, z: 10, radius: 9.5 };
@@ -38,9 +38,19 @@ export class PhysicsWorld {
 
   bodyCount() {
     let n = 0;
-    this.world.bodies.forEach(() => {
-      n += 1;
-    });
+    this.world.bodies.forEach(() => { n += 1; });
+    return n;
+  }
+
+  colliderCount() {
+    let n = 0;
+    this.world.colliders.forEach(() => { n += 1; });
+    return n;
+  }
+
+  jointCount() {
+    let n = 0;
+    try { this.world.impulseJoints.forEach(() => { n += 1; }); } catch (_) { /* */ }
     return n;
   }
 
@@ -53,18 +63,18 @@ export class PhysicsWorld {
       this.alpha = 1;
       return 0;
     }
-    this.accumulator += Math.min(dt, 0.08);
+    this.accumulator += Math.min(dt, 0.05);
     let steps = 0;
     while (this.accumulator >= FIXED_DT && steps < MAX_SUBSTEPS) {
       this.sync.snapshot();
       if (fn) fn(FIXED_DT);
       this.applyBuoyancy(FIXED_DT);
-      this.world.step(this.eventQueue);
+      this.world.step();
       this.accumulator -= FIXED_DT;
       steps += 1;
     }
-    if (steps === MAX_SUBSTEPS) this.accumulator = 0;
-    this.alpha = this.accumulator / FIXED_DT;
+    if (this.accumulator > FIXED_DT * MAX_SUBSTEPS) this.accumulator = 0;
+    this.alpha = Math.min(1, this.accumulator / FIXED_DT);
     return steps;
   }
 
@@ -155,8 +165,13 @@ export class PhysicsWorld {
   }
 
   raycast(origin, dir, max = 8, excludeBody = null) {
-    const ray = new RAPIER.Ray(origin, dir);
-    const hit = this.world.castRay(ray, max, true, undefined, undefined, undefined, excludeBody || undefined);
+    this._ray.origin.x = origin.x;
+    this._ray.origin.y = origin.y;
+    this._ray.origin.z = origin.z;
+    this._ray.dir.x = dir.x;
+    this._ray.dir.y = dir.y;
+    this._ray.dir.z = dir.z;
+    const hit = this.world.castRay(this._ray, max, true, undefined, undefined, undefined, excludeBody || undefined);
     if (!hit) return null;
     const collider = hit.collider;
     const toi = hit.timeOfImpact;

@@ -11,7 +11,11 @@ async function boot() {
   const game = new Game(canvas);
   try {
     await game.init();
-    window.__SKY = { game, dbg: game.dbg };
+    window.__SKY = {
+      game,
+      dbg: game.dbg,
+      getDiagnostics: () => game.getDiagnostics(),
+    };
     bootMsg.remove();
     game.start();
     console.log(`SKYFORGE ${VERSION} ready`);

@@ -12,6 +12,8 @@ export class AudioSys {
     this._motor = null;
     this._time = 0;
     this.muted = false;
+    this._live = 0;
+    this._noiseBuf = null;
   }
 
   init() {
@@ -57,6 +59,7 @@ export class AudioSys {
 
   _osc(type, freq, t, dur, gain, dest, slide) {
     if (!this.ready || this.muted) return;
+    if (this._live > 18) return;
     const o = this.ctx.createOscillator();
     const g = this.ctx.createGain();
     o.type = type;
@@ -67,18 +70,27 @@ export class AudioSys {
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g);
     g.connect(dest || this.sfx);
+    this._live += 1;
+    o.onended = () => { this._live = Math.max(0, this._live - 1); };
     o.start(t);
     o.stop(t + dur + 0.02);
   }
 
-  _noise(t, dur, gain, dest, bpFreq, q) {
-    if (!this.ready || this.muted) return;
-    const n = this.ctx.createBufferSource();
-    const len = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
+  _noiseBufGet() {
+    if (this._noiseBuf) return this._noiseBuf;
+    const len = this.ctx.sampleRate;
     const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    n.buffer = buf;
+    this._noiseBuf = buf;
+    return buf;
+  }
+
+  _noise(t, dur, gain, dest, bpFreq, q) {
+    if (!this.ready || this.muted) return;
+    if (this._live > 18) return;
+    const n = this.ctx.createBufferSource();
+    n.buffer = this._noiseBufGet();
     const f = this.ctx.createBiquadFilter();
     f.type = 'bandpass';
     f.frequency.value = bpFreq || 800;
@@ -90,6 +102,8 @@ export class AudioSys {
     n.connect(f);
     f.connect(g);
     g.connect(dest || this.sfx);
+    this._live += 1;
+    n.onended = () => { this._live = Math.max(0, this._live - 1); };
     n.start(t);
     n.stop(t + dur + 0.02);
   }

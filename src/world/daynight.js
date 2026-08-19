@@ -40,22 +40,22 @@ export class DayNight {
     const dusk = this._pulse(t, 0.78, 0.08);
     const day = THREE.MathUtils.clamp(elev, 0, 1);
 
-    this.zenith.setHex(0x1a2340).lerp(new THREE.Color(0x6ea8c4), day);
+    this.zenith.setHex(0x1a2340).lerp(COLORA.setHex(0x6ea8c4), day);
     this.horizon.setHex(0x2a2438);
-    if (dawn > 0) this.horizon.lerp(new THREE.Color(0xf0b896), dawn);
-    if (dusk > 0) this.horizon.lerp(new THREE.Color(0xc46a3a), dusk);
-    if (day > 0.2) this.horizon.lerp(new THREE.Color(0xd8c4a0), (day - 0.2) * 0.8);
+    if (dawn > 0) this.horizon.lerp(COLORB.setHex(0xf0b896), dawn);
+    if (dusk > 0) this.horizon.lerp(COLORC.setHex(0xc46a3a), dusk);
+    if (day > 0.2) this.horizon.lerp(COLORD.setHex(0xd8c4a0), (day - 0.2) * 0.8);
 
     this.sunColor.setHex(0xffe2b0);
-    if (dusk > 0.2) this.sunColor.lerp(new THREE.Color(0xe09a4a), dusk);
-    if (dawn > 0.2) this.sunColor.lerp(new THREE.Color(0xffc8a0), dawn);
+    if (dusk > 0.2) this.sunColor.lerp(COLORE.setHex(0xe09a4a), dusk);
+    if (dawn > 0.2) this.sunColor.lerp(COLORF.setHex(0xffc8a0), dawn);
 
     this.sunIntensity = 0.22 + day * 1.15;
     this.hemiIntensity = 0.62 + day * 0.72;
     this.fillIntensity = 0.28 + day * 0.32;
-    this.fog.copy(this.horizon).lerp(new THREE.Color(0xc5d4c6), 0.45);
-    this.zenith.lerp(new THREE.Color(0x8ec4dc), 0.18);
-    this.horizon.lerp(new THREE.Color(0xe6d2b0), 0.12);
+    this.fog.copy(this.horizon).lerp(COLORA.setHex(0xc5d4c6), 0.45);
+    this.zenith.lerp(COLORB.setHex(0x8ec4dc), 0.18);
+    this.horizon.lerp(COLORC.setHex(0xe6d2b0), 0.12);
   }
 
   _pulse(t, c, w) {

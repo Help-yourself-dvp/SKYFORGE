@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { RAPIER } from '../physics/world.js';
 import { faunaFilter } from '../physics/materials.js';
 
+const _fdir = new THREE.Vector3();
+
 const ARCH = {
   TRAILBEAST: { speed: 1.8, flee: 4.2, size: [0.45, 0.55, 0.8], color: 0x8a6a48, mass: 8 },
   GLIDER: { speed: 3.4, flee: 5, size: [0.9, 0.12, 0.55], color: 0x4a6570, mass: 2.2, fly: true },
@@ -142,11 +144,10 @@ export class Fauna {
 
     const pos = a.mesh.position;
     if (a.state === 'flee' && player) {
-      const dir = pos.clone().sub(player);
-      dir.y = 0;
+      const dir = _fdir.set(pos.x - player.x, 0, pos.z - player.z);
       if (dir.lengthSq() < 0.01) dir.set(1, 0, 0);
       dir.normalize().multiplyScalar(8);
-      a.target.copy(pos).add(dir);
+      a.target.set(pos.x + dir.x, pos.y, pos.z + dir.z);
     } else if (a.state === 'seekFood' && fruits.length) {
       let best = fruits[0];
       let bd = 1e9;
@@ -178,7 +179,7 @@ export class Fauna {
   _integrate(a, dt) {
     const pos = a.mesh.position;
     const dest = a.target;
-    const dir = new THREE.Vector3(dest.x - pos.x, 0, dest.z - pos.z);
+    const dir = _fdir.set(dest.x - pos.x, 0, dest.z - pos.z);
     const dist = dir.length();
     const fly = a.def.fly;
     let spd = a.state === 'flee' ? a.def.flee : a.state === 'idle' || a.state === 'rest' ? 0 : a.def.speed;

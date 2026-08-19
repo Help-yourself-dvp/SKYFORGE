@@ -3,6 +3,8 @@ import { RAPIER } from '../physics/world.js';
 import { enemyFilter } from '../physics/materials.js';
 import { SURVIVAL } from '../config.js';
 
+const _edest = new THREE.Vector3();
+
 export class Enemies {
   constructor(game) {
     this.game = game;
@@ -91,15 +93,20 @@ export class Enemies {
       s.state = 'chase';
     } else s.state = 'wander';
 
-    const dest = new THREE.Vector3();
+    const dest = _edest;
     if (s.state === 'retreat' && lightPos) {
-      dest.copy(s.mesh.position).sub(lightPos).setY(0);
+      dest.copy(s.mesh.position).sub(lightPos);
+      dest.y = 0;
       if (dest.lengthSq() < 0.01) dest.set(1, 0, 0);
       dest.normalize().multiplyScalar(6).add(s.mesh.position);
     } else if (s.state === 'chase') {
       dest.copy(player);
     } else {
-      dest.copy(s.mesh.position).add(new THREE.Vector3(Math.sin(this.game.time + s.pos.x), 0, Math.cos(this.game.time * 0.7 + s.pos.z)).multiplyScalar(3));
+      dest.set(
+        s.mesh.position.x + Math.sin(this.game.time + s.pos.x) * 3,
+        s.mesh.position.y,
+        s.mesh.position.z + Math.cos(this.game.time * 0.7 + s.pos.z) * 3,
+      );
     }
     const dir = dest.sub(s.mesh.position);
     dir.y = 0;
