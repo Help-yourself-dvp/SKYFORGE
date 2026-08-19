@@ -11,8 +11,8 @@ export class Gfx {
     this.qualityName = 'HIGH';
     this.quality = QUALITY.HIGH;
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x8aa4b0, 0.0085);
-    this.camera = new THREE.PerspectiveCamera(52, 1, 0.12, 420);
+    this.scene.fog = new THREE.Fog(0xc5d4c6, 24, 150);
+    this.camera = new THREE.PerspectiveCamera(52, 1, 0.18, 320);
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
@@ -21,12 +21,15 @@ export class Gfx {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.32;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.setClearColor(0x6ea8c4, 1);
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.renderer.setClearColor(0x9ec4c8, 1);
+    const mobile = !!(typeof window !== 'undefined' && (window.Capacitor || window.matchMedia('(pointer: coarse)').matches));
+    this.dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.35 : 1.75);
     this.renderer.setPixelRatio(this.dpr);
+    this.qualityName = mobile ? 'MEDIUM' : 'HIGH';
+    this.quality = QUALITY[this.qualityName];
     this.sky = new Sky(this.scene);
     this.post = new PostFX(this.renderer, this.scene, this.camera);
     this.particles = null;
@@ -61,16 +64,20 @@ export class Gfx {
   adapt(fps) {
     this._fps = this._fps * 0.9 + fps * 0.1;
     this._adapt += 1;
-    if (this._adapt < 90) return;
+    if (this._adapt < 480) return;
     this._adapt = 0;
-    if (this._fps < 40 && this.qualityName === 'HIGH') this.setQuality('MEDIUM');
-    else if (this._fps < 32 && this.qualityName === 'MEDIUM') this.setQuality('LOW');
-    else if (this._fps > 56 && this.qualityName === 'LOW') this.setQuality('MEDIUM');
-    else if (this._fps > 58 && this.qualityName === 'MEDIUM') this.setQuality('HIGH');
+    if (this._fps < 38 && this.qualityName === 'HIGH') this.setQuality('MEDIUM');
+    else if (this._fps < 30 && this.qualityName === 'MEDIUM') this.setQuality('LOW');
   }
 
   render() {
-    this.post.render();
+    try {
+      this.post.render();
+    } catch (e) {
+      console.warn('postfx fail, raw render', e);
+      this.post.enabled = false;
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   dispose() {

@@ -159,9 +159,13 @@ export class Player {
     this.controller.computeColliderMovement(this.collider, desired);
     const mv = this.controller.computedMovement();
     const t = this.body.translation();
-    const nx = t.x + mv.x;
-    const ny = t.y + mv.y;
-    const nz = t.z + mv.z;
+    let nx = t.x + mv.x;
+    let ny = t.y + mv.y;
+    let nz = t.z + mv.z;
+    if (!Number.isFinite(nx) || !Number.isFinite(ny) || !Number.isFinite(nz)) {
+      this.respawnSafe();
+      return;
+    }
     this.body.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
     this.position.set(nx, ny, nz);
     this.speed = Math.hypot(vx, vz);

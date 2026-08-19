@@ -44,9 +44,20 @@ export class Resources {
     g.position.copy(pos);
     g.userData.kind = 'tree';
     g.userData.id = id;
-    const bark = new THREE.MeshStandardMaterial({ color: type === 'pine' ? 0x4a3a2c : 0x6a4a32, roughness: 0.86 });
-    const leafCol = type === 'pine' ? 0x2f4a38 : type === 'fruit' ? 0x3d6a40 : 0x35583a;
-    const leaf = new THREE.MeshStandardMaterial({ color: leafCol, roughness: 0.78 });
+    const bark = new THREE.MeshStandardMaterial({
+      color: type === 'pine' ? 0x7a5a40 : 0x9a6e46,
+      roughness: 0.78,
+      emissive: 0x2a1810,
+      emissiveIntensity: 0.06,
+    });
+    const leafCol = type === 'pine' ? 0x4f7a4e : type === 'fruit' ? 0x5a8a4c : 0x56824c;
+    const leaf = new THREE.MeshStandardMaterial({
+      color: leafCol,
+      roughness: 0.62,
+      metalness: 0.02,
+      emissive: 0x142010,
+      emissiveIntensity: 0.1,
+    });
     const h = type === 'pine' ? 5.4 : 4.4;
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, h, 7), bark);
     trunk.position.y = h * 0.5;

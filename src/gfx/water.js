@@ -10,8 +10,8 @@ export class Water {
       uniforms: {
         uTime: { value: 0 },
         uWind: { value: new THREE.Vector2(0.4, 0.2) },
-        uDeep: { value: new THREE.Color(0x163a48) },
-        uShallow: { value: new THREE.Color(0x3d7a7a) },
+        uDeep: { value: new THREE.Color(0x2a6270) },
+        uShallow: { value: new THREE.Color(0x6eb4a8) },
         uSunDir: { value: new THREE.Vector3(0.4, 0.8, 0.2) },
         uCam: { value: new THREE.Vector3() },
       },

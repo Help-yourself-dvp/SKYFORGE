@@ -25,22 +25,30 @@ export class Sky {
     this.mesh.frustumCulled = false;
     scene.add(this.mesh);
 
-    this.sun = new THREE.DirectionalLight(0xffe4c4, 1.35);
+    this.sun = new THREE.DirectionalLight(0xffe4c4, 1.2);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 2;
-    this.sun.shadow.camera.far = 90;
-    this.sun.shadow.camera.left = -28;
-    this.sun.shadow.camera.right = 28;
-    this.sun.shadow.camera.top = 28;
-    this.sun.shadow.camera.bottom = -28;
-    this.sun.shadow.bias = -0.00035;
-    this.sun.shadow.normalBias = 0.035;
+    this.sun.shadow.camera.far = 80;
+    this.sun.shadow.camera.left = -22;
+    this.sun.shadow.camera.right = 22;
+    this.sun.shadow.camera.top = 22;
+    this.sun.shadow.camera.bottom = -22;
+    this.sun.shadow.bias = -0.0005;
+    this.sun.shadow.normalBias = 0.04;
+    if ('intensity' in this.sun.shadow) this.sun.shadow.intensity = 0.42;
     scene.add(this.sun);
     scene.add(this.sun.target);
 
-    this.hemi = new THREE.HemisphereLight(0x8fb4c8, 0x3d3428, 0.55);
+    this.hemi = new THREE.HemisphereLight(0xb7d4e2, 0x6a5a44, 1.15);
     scene.add(this.hemi);
+
+    this.fill = new THREE.DirectionalLight(0xc8dce8, 0.48);
+    this.fill.castShadow = false;
+    scene.add(this.fill);
+
+    this.amb = new THREE.AmbientLight(0xd8c8b0, 0.22);
+    scene.add(this.amb);
 
     this.moon = new THREE.DirectionalLight(0x9bb0d0, 0.08);
     scene.add(this.moon);
@@ -54,8 +62,8 @@ export class Sky {
     g.userData.kind = 'clouds';
     const geo = new THREE.SphereGeometry(1, 10, 8);
     const mats = [
-      new THREE.MeshStandardMaterial({ color: 0xe8e0d4, roughness: 1, transparent: true, opacity: 0.72, depthWrite: false }),
-      new THREE.MeshStandardMaterial({ color: 0xd5cfc4, roughness: 1, transparent: true, opacity: 0.55, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: 0xf4efe6, transparent: true, opacity: 0.42, depthWrite: false, fog: true }),
+      new THREE.MeshBasicMaterial({ color: 0xe8e2d6, transparent: true, opacity: 0.32, depthWrite: false, fog: true }),
     ];
     this._cloudMats = mats;
     this._cloudPuffs = [];
@@ -63,7 +71,7 @@ export class Sky {
       const c = new THREE.Mesh(geo, mats[i % 2]);
       const a = (i / 18) * Math.PI * 2;
       const r = 46 + (i % 5) * 10;
-      c.position.set(Math.cos(a) * r, 22 + (i % 4) * 3.5, Math.sin(a) * r);
+      c.position.set(Math.cos(a) * r, 28 + (i % 4) * 4.2, Math.sin(a) * r);
       c.scale.set(6 + (i % 3) * 2.2, 2.2 + (i % 2), 4.5 + (i % 4));
       c.userData.kind = 'cloud';
       c.userData.baseY = c.position.y;
@@ -75,11 +83,9 @@ export class Sky {
   }
 
   setShadowSize(n) {
+    if (this.sun.shadow.mapSize.x === n) return;
     this.sun.shadow.mapSize.set(n, n);
-    if (this.sun.shadow.map) {
-      this.sun.shadow.map.dispose();
-      this.sun.shadow.map = null;
-    }
+    // Recreating the shadow RT mid-session freezes Honor WebView. Keep the live map.
   }
 
   update(dt, day, playerPos, camPos) {
@@ -103,8 +109,11 @@ export class Sky {
     this.sun.color.copy(day.sunColor);
     this.sun.intensity = day.sunIntensity;
     this.hemi.intensity = day.hemiIntensity;
-    this.hemi.color.copy(day.zenith);
-    this.hemi.groundColor.copy(day.ground);
+    this.hemi.color.setHex(0xb7d4e2).lerp(day.zenith, 0.35);
+    this.hemi.groundColor.setHex(0x7a6a52);
+    this.fill.position.copy(focus).add(sunDir.clone().multiplyScalar(-24).setY(18));
+    this.fill.intensity = day.fillIntensity || 0.4;
+    this.amb.intensity = 0.18 + (1 - day.night) * 0.1;
     this.moon.position.copy(focus).add(moonDir.clone().multiplyScalar(30));
     this.moon.intensity = day.night * 0.22;
 
@@ -116,7 +125,7 @@ export class Sky {
       c.position.y = c.userData.baseY + Math.sin(this.mat.uniforms.uTime.value * 0.2 + c.userData.phase) * 0.4;
       if (camPos && playerPos) {
         const between = this._cloudBetween(c.position, camPos, playerPos);
-        c.material.opacity = between ? 0.18 : (c.material === this._cloudMats[0] ? 0.72 : 0.55);
+        c.material.opacity = between ? 0.12 : (c.material === this._cloudMats[0] ? 0.4 : 0.3);
       }
     }
   }

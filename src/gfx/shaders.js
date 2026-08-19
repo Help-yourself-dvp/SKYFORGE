@@ -119,8 +119,14 @@ void main() {
   #ifdef USE_COLOR
   vColor = color;
 #else
-  vColor = vec3(0.28, 0.40, 0.24);
+  vColor = vec3(0.34, 0.44, 0.28);
 #endif
+  float hide = smoothstep(1.6, 3.1, dist);
+  vShade = aShade * hide;
+  if (dist < 1.55) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    return;
+  }
   vec4 mv = modelViewMatrix * instanceMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mv;
 }
@@ -130,7 +136,8 @@ export const GRASS_FRAG = /* glsl */ `
 varying vec3 vColor;
 varying float vShade;
 void main() {
-  vec3 col = vColor * (0.72 + vShade * 0.4);
+  if (vShade < 0.02) discard;
+  vec3 col = vColor * (0.78 + vShade * 0.22);
   gl_FragColor = vec4(col, 1.0);
 }
 `;

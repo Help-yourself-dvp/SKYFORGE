@@ -440,8 +440,13 @@ export class Game {
     }
     this.cam.update(dt, focus, hint);
     this.gfx.sky.update(dt, this.daynight, focus, this.gfx.camera.position);
-    this.gfx.scene.fog.color.copy(this.daynight.fog);
-    this.gfx.scene.fog.density = 0.007 + this.daynight.night * 0.006 + this.weather.wet * 0.003;
+    if (this.gfx.scene.fog) {
+      this.gfx.scene.fog.color.copy(this.daynight.fog);
+      if ('near' in this.gfx.scene.fog) {
+        this.gfx.scene.fog.near = 22 + this.daynight.night * 6;
+        this.gfx.scene.fog.far = 148 - this.weather.wet * 18;
+      }
+    }
     this.physics.sync.apply(this.physics.alpha);
     this.ui.update(dt);
     this.dbg.update(dt);
@@ -555,6 +560,14 @@ export class Game {
     if (name === 'shot-world') {
       this.setState(STATES.EXPLORE);
       this.daynight.setTime(0.32);
+      this.gfx.setQuality('HIGH');
+      this.gfx.renderer.toneMappingExposure = 1.32;
+      const look = new THREE.Vector3(4.5, 5.6, -6.2);
+      this.cam.locked = {
+        position: new THREE.Vector3(17.4, 11.6, 15.2),
+        look,
+      };
+      this.player.setPosition(4.6, this.world.heightAt(4.6, -3.8) + 0.15, -3.8);
     }
     if (name === 'shot-build') {
       this.setState(STATES.BUILD);

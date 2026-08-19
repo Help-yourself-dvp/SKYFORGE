@@ -16,6 +16,7 @@ export class GameCamera {
     this.current = new THREE.Vector3(0, 8, 8);
     this.look = new THREE.Vector3();
     this.punch = 0;
+    this.locked = null;
   }
 
   addLook(dx, dy) {
@@ -28,6 +29,12 @@ export class GameCamera {
   }
 
   update(dt, target, forwardHint) {
+    if (this.locked) {
+      this.camera.position.copy(this.locked.position);
+      this.camera.lookAt(this.locked.look);
+      this.camera.up.set(0, 1, 0);
+      return;
+    }
     const cfg = CAMERA;
     let dist = cfg.distance;
     let height = cfg.height;

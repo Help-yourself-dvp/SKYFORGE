@@ -24,9 +24,9 @@ export class Flora {
 
   _grass(island, rng) {
     const quality = this.game.gfx.quality.grass;
-    const count = Math.floor(2200 * quality);
-    const geo = new THREE.PlaneGeometry(0.12, 0.55, 1, 2);
-    geo.translate(0, 0.27, 0);
+    const count = Math.floor(1600 * quality);
+    const geo = new THREE.PlaneGeometry(0.055, 0.26, 1, 2);
+    geo.translate(0, 0.13, 0);
     const mat = new THREE.ShaderMaterial({
       vertexShader: GRASS_VERT,
       fragmentShader: GRASS_FRAG,
@@ -43,7 +43,6 @@ export class Flora {
     const phase = new Float32Array(count);
     const shade = new Float32Array(count);
     const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
     let n = 0;
     let guard = 0;
     while (n < count && guard < count * 8) {
@@ -57,7 +56,7 @@ export class Flora {
       if (island.zoneAt(x, z) === 'quarry' && rng.next() < 0.7) continue;
       dummy.position.set(x, y, z);
       dummy.rotation.set(0, rng.range(0, Math.PI * 2), 0);
-      dummy.scale.setScalar(rng.range(0.7, 1.35));
+      dummy.scale.setScalar(rng.range(0.75, 1.15));
       dummy.updateMatrix();
       mesh.setMatrixAt(n, dummy.matrix);
       phase[n] = rng.range(0, Math.PI * 2);
@@ -101,7 +100,7 @@ export class Flora {
     } else if (kind === 'bush') {
       const m = new THREE.Mesh(
         new THREE.SphereGeometry(0.35 * s * 1.4, 7, 6),
-        new THREE.MeshStandardMaterial({ color: 0x2f4a38, roughness: 0.85 }),
+        new THREE.MeshStandardMaterial({ color: 0x4a6a48, roughness: 0.78, emissive: 0x101808, emissiveIntensity: 0.08 }),
       );
       m.position.y = 0.3 * s;
       m.scale.set(1.2, 0.8, 1.1);

@@ -11,8 +11,9 @@ export class DayNight {
     this.sunColor = new THREE.Color(0xffe2b0);
     this.ground = new THREE.Color(0x3d3428);
     this.fog = new THREE.Color(0x8aa4b0);
-    this.sunIntensity = 1.3;
-    this.hemiIntensity = 0.55;
+    this.sunIntensity = 1.2;
+    this.hemiIntensity = 1.15;
+    this.fillIntensity = 0.48;
     this.night = 0;
     this.sunDir = new THREE.Vector3(0.4, 0.8, 0.2);
   }
@@ -49,9 +50,12 @@ export class DayNight {
     if (dusk > 0.2) this.sunColor.lerp(new THREE.Color(0xe09a4a), dusk);
     if (dawn > 0.2) this.sunColor.lerp(new THREE.Color(0xffc8a0), dawn);
 
-    this.sunIntensity = 0.05 + day * 1.35;
-    this.hemiIntensity = 0.18 + day * 0.42;
-    this.fog.copy(this.horizon).lerp(this.zenith, 0.35);
+    this.sunIntensity = 0.22 + day * 1.15;
+    this.hemiIntensity = 0.62 + day * 0.72;
+    this.fillIntensity = 0.28 + day * 0.32;
+    this.fog.copy(this.horizon).lerp(new THREE.Color(0xc5d4c6), 0.45);
+    this.zenith.lerp(new THREE.Color(0x8ec4dc), 0.18);
+    this.horizon.lerp(new THREE.Color(0xe6d2b0), 0.12);
   }
 
   _pulse(t, c, w) {

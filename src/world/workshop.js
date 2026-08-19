@@ -28,12 +28,12 @@ export class Workshop {
   }
 
   _build() {
-    const wood = this._mat(0x6a4a32);
-    const dark = this._mat(0x3a2a22);
-    const brass = this._mat(0xc4a15a, { metalness: 0.7, roughness: 0.32 });
-    const copper = this._mat(0x6e8b74, { metalness: 0.45, roughness: 0.4 });
-    const cloth = this._mat(0x4a3030);
-    const stone = this._mat(0x6d6a66, { roughness: 0.88 });
+    const wood = this._mat(0x9a6a42, { emissive: 0x2a1808, emissiveIntensity: 0.08 });
+    const dark = this._mat(0x5a4032);
+    const brass = this._mat(0xd4b46a, { metalness: 0.7, roughness: 0.32, emissive: 0x3a2a10, emissiveIntensity: 0.12 });
+    const copper = this._mat(0x7e9b84, { metalness: 0.45, roughness: 0.4 });
+    const cloth = this._mat(0x7a4840);
+    const stone = this._mat(0x8a8680, { roughness: 0.88 });
 
     const floor = this._box(8.4, 0.18, 7.2, wood);
     floor.position.y = 0.05;

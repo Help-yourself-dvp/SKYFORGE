@@ -105,12 +105,12 @@ export class Island {
       const zone = this.zoneAt(x, z);
       const slope = Math.abs(this.sample(x + 0.6, z) - this.sample(x - 0.6, z))
         + Math.abs(this.sample(x, z + 0.6) - this.sample(x, z - 0.6));
-      if (zone === 'wet') color.setHex(0x3a5a48);
-      else if (zone === 'quarry') color.setHex(0x6d6a66);
-      else color.setHex(0x3f5a3a);
-      if (slope > 1.6) color.setHex(0x6a6258);
-      if (y < this.pond.level + 0.25 && zone === 'wet') color.setHex(0x5a5340);
-      color.offsetHSL(0, 0, (this.noise.n2(x * 0.2, z * 0.2)) * 0.05);
+      if (zone === 'wet') color.setHex(0x6a8a68);
+      else if (zone === 'quarry') color.setHex(0x9a9186);
+      else color.setHex(0x6f8a52);
+      if (slope > 1.6) color.setHex(0x8a7d6c);
+      if (y < this.pond.level + 0.25 && zone === 'wet') color.setHex(0x8a7a58);
+      color.offsetHSL((this.noise.n2(x * 0.11, z * 0.11)) * 0.03, 0.04, (this.noise.n2(x * 0.2, z * 0.2)) * 0.08);
       col[i * 3] = color.r;
       col[i * 3 + 1] = color.g;
       col[i * 3 + 2] = color.b;
@@ -119,12 +119,14 @@ export class Island {
     geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.88,
+      roughness: 0.82,
       metalness: 0.02,
+      emissive: new THREE.Color(0x243018),
+      emissiveIntensity: 0.07,
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
-    mesh.castShadow = true;
+    mesh.castShadow = false;
     mesh.userData.kind = 'terrain';
     return mesh;
   }
@@ -148,7 +150,8 @@ export class Island {
       peak.position.set(x, y - rng.range(6, 12), z);
       peak.rotation.x = Math.PI;
       peak.rotation.y = rng.range(0, Math.PI);
-      peak.castShadow = true;
+      peak.castShadow = false;
+      peak.receiveShadow = false;
       peak.userData.kind = 'underside';
       g.add(peak);
     }
@@ -157,6 +160,8 @@ export class Island {
       soil,
     );
     rim.position.y = 1.2;
+    rim.castShadow = false;
+    rim.receiveShadow = false;
     rim.userData.kind = 'underside';
     g.add(rim);
     return g;
