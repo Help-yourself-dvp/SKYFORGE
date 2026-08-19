@@ -68,3 +68,4 @@
 - Heightfield края острова крутые: редкий drift у обрыва лечится fall-respawn.
 - Телега на слабом устройстве может требовать MEDIUM quality.
 - Без Java/Android SDK локальный `assembleRelease` не подтверждается.
+- Push workflow-файла в `.github/workflows/` отклонён GitHub App (нет `workflows` permission). Pipeline лежит в `docs/ci/android.yml`.
