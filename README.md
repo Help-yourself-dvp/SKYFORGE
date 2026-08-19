@@ -56,7 +56,7 @@ npx cap sync android
 npm run android:build
 ```
 
-CI: `.github/workflows/android.yml`
+CI: `docs/ci/android.yml` (копия для `.github/workflows/android.yml`; сам workflow-файл GitHub App этой сессии не принимает без permission `workflows`).
 
 - Node 20, Java 17
 - `npm ci` → `npm run build` → `npx cap sync android` → `assembleRelease`

@@ -33,7 +33,7 @@
 - Синтетический звук
 - Shot hooks, DBG ~1/сек
 - UI landscape, portrait lock
-- GitHub Actions android pipeline
+- Android CI pipeline описан в `docs/ci/android.yml` (перенос в `.github/workflows/` требует permission `workflows`)
 - Offline preview builder
 
 ## PARTIAL
