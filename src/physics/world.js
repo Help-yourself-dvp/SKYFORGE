@@ -25,7 +25,7 @@ export class PhysicsWorld {
     this.paused = false;
     this.debug = false;
     this._id = 1;
-    this._ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
+    this._ray = null;
     this.buoyant = [];
     this.waterLevel = 4.2;
     this.pond = { x: 16, z: 10, radius: 9.5 };
@@ -164,14 +164,29 @@ export class PhysicsWorld {
     if (bi >= 0) this.buoyant.splice(bi, 1);
   }
 
+  _ensureRay(origin, dir) {
+    const o = { x: origin.x, y: origin.y, z: origin.z };
+    const d = { x: dir.x, y: dir.y, z: dir.z };
+    if (!this._ray) {
+      this._ray = new this.R.Ray(o, d);
+      return this._ray;
+    }
+    try {
+      this._ray.origin.x = o.x;
+      this._ray.origin.y = o.y;
+      this._ray.origin.z = o.z;
+      this._ray.dir.x = d.x;
+      this._ray.dir.y = d.y;
+      this._ray.dir.z = d.z;
+    } catch (_) {
+      this._ray = new this.R.Ray(o, d);
+    }
+    return this._ray;
+  }
+
   raycast(origin, dir, max = 8, excludeBody = null) {
-    this._ray.origin.x = origin.x;
-    this._ray.origin.y = origin.y;
-    this._ray.origin.z = origin.z;
-    this._ray.dir.x = dir.x;
-    this._ray.dir.y = dir.y;
-    this._ray.dir.z = dir.z;
-    const hit = this.world.castRay(this._ray, max, true, undefined, undefined, undefined, excludeBody || undefined);
+    const ray = this._ensureRay(origin, dir);
+    const hit = this.world.castRay(ray, max, true, undefined, undefined, undefined, excludeBody || undefined);
     if (!hit) return null;
     const collider = hit.collider;
     const toi = hit.timeOfImpact;

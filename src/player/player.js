@@ -97,7 +97,7 @@ export class Player {
     this.controller.setMinSlopeSlideAngle(PLAYER.maxSlope + 0.08);
     this.controller.enableAutostep(PLAYER.stepHeight, 0.18, true);
     this.controller.enableSnapToGround(0.35);
-    this.controller.setApplyImpulsesToDynamicBodies(true);
+    this.controller.setApplyImpulsesToDynamicBodies(false);
     this.controller.setCharacterMass(12);
     this.game.physics.sync.add({
       id: 'player', kind: 'player', body: this.body, collider: this.collider, mesh: this.group, mass: 12, manualSync: true,
@@ -173,7 +173,7 @@ export class Player {
     this.body.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
     this.position.set(nx, ny, nz);
     this.speed = Math.hypot(vx, vz);
-    if (moving) this.yaw = Math.atan2(wish.x, wish.z);
+    if (moving) this.yaw = Math.atan2(_wish.x, _wish.z);
 
     if (ny < -8 || (Math.hypot(nx, nz) > this.game.world.main.radius + 2 && ny < this.game.world.heightAt(nx, nz) - 4)) {
       this.falling += dt;

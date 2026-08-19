@@ -25,7 +25,10 @@ export class Gfx {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.setClearColor(0x9ec4c8, 1);
-    const mobile = !!(typeof window !== 'undefined' && (window.Capacitor || window.matchMedia('(pointer: coarse)').matches));
+    let mobile = false;
+    try {
+      mobile = !!(typeof window !== 'undefined' && (window.Capacitor || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)));
+    } catch (_) { mobile = true; }
     this.dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.35 : 1.75);
     this.renderer.setPixelRatio(this.dpr);
     this.qualityName = mobile ? 'MEDIUM' : 'HIGH';

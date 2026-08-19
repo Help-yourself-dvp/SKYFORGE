@@ -136,37 +136,95 @@ export class Island {
   buildUnderside() {
     const g = new THREE.Group();
     g.userData.kind = 'underside';
-    const rock = new THREE.MeshStandardMaterial({ color: 0x4a453f, roughness: 0.92, metalness: 0.04 });
-    const soil = new THREE.MeshStandardMaterial({ color: 0x5a4634, roughness: 0.95 });
-    const rng = this.rng;
-    for (let i = 0; i < 26; i++) {
-      const a = (i / 26) * Math.PI * 2 + rng.range(-0.1, 0.1);
-      const r = this.radius * rng.range(0.15, 0.72);
+    try {
+      g.add(this._volumeShell());
+    } catch (e) {
+      console.warn('island volume', e);
+    }
+    const rock = new THREE.MeshStandardMaterial({ color: 0x6a6258, roughness: 0.9, metalness: 0.04 });
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2 + this.rng.range(-0.12, 0.12);
+      const r = this.radius * this.rng.range(0.18, 0.62);
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       const y = this.sample(x, z);
       const peak = new THREE.Mesh(
-        new THREE.ConeGeometry(rng.range(1.4, 3.4), rng.range(7, 16), 6),
-        i % 3 === 0 ? soil : rock,
+        new THREE.ConeGeometry(this.rng.range(1.1, 2.4), this.rng.range(5, 11), 6),
+        rock,
       );
-      peak.position.set(x, y - rng.range(6, 12), z);
+      peak.position.set(x, y - this.rng.range(7, 13), z);
       peak.rotation.x = Math.PI;
-      peak.rotation.y = rng.range(0, Math.PI);
+      peak.rotation.y = this.rng.range(0, Math.PI);
       peak.castShadow = false;
       peak.receiveShadow = false;
       peak.userData.kind = 'underside';
       g.add(peak);
     }
-    const rim = new THREE.Mesh(
-      new THREE.CylinderGeometry(this.radius * 0.92, this.radius * 0.55, 10, 24, 1, true),
-      soil,
-    );
-    rim.position.y = 1.2;
-    rim.castShadow = false;
-    rim.receiveShadow = false;
-    rim.userData.kind = 'underside';
-    g.add(rim);
     return g;
+  }
+
+  _volumeShell() {
+    const segs = 48;
+    const rings = 7;
+    const pos = [];
+    const col = [];
+    const idx = [];
+    const soil = new THREE.Color(0x8a6a42);
+    const rock = new THREE.Color(0x6d675e);
+    const deep = new THREE.Color(0x3a342e);
+    for (let j = 0; j < rings; j++) {
+      const t = j / (rings - 1);
+      for (let i = 0; i < segs; i++) {
+        const a = (i / segs) * Math.PI * 2;
+        const wobble = 0.78 + this.noise.n2(Math.cos(a) * 1.7, Math.sin(a) * 1.7) * 0.16;
+        const topR = this.radius * wobble;
+        const botR = this.radius * (0.18 + this.noise.n2(Math.cos(a) * 3.1 + 4, Math.sin(a) * 3.1) * 0.08);
+        const rad = THREE.MathUtils.lerp(topR, botR, t * t);
+        const x = Math.cos(a) * rad;
+        const z = Math.sin(a) * rad;
+        const topY = this.sample(Math.cos(a) * topR * 0.96, Math.sin(a) * topR * 0.96);
+        const botY = -9 - Math.abs(this.noise.n2(Math.cos(a) * 2, Math.sin(a) * 2)) * 5;
+        const y = THREE.MathUtils.lerp(topY - 0.2, botY, t);
+        pos.push(x, y, z);
+        const c = t < 0.18 ? soil : t < 0.55 ? rock : deep;
+        col.push(c.r, c.g, c.b);
+      }
+    }
+    for (let j = 0; j < rings - 1; j++) {
+      for (let i = 0; i < segs; i++) {
+        const i0 = j * segs + i;
+        const i1 = j * segs + ((i + 1) % segs);
+        const i2 = (j + 1) * segs + i;
+        const i3 = (j + 1) * segs + ((i + 1) % segs);
+        idx.push(i0, i2, i1, i1, i2, i3);
+      }
+    }
+    const last = (rings - 1) * segs;
+    const tip = pos.length / 3;
+    pos.push(0, -14, 0);
+    col.push(deep.r, deep.g, deep.b);
+    for (let i = 0; i < segs; i++) {
+      idx.push(last + i, tip, last + ((i + 1) % segs));
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(
+      geo,
+      new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.9,
+        metalness: 0.03,
+        emissive: 0x1a1410,
+        emissiveIntensity: 0.05,
+      }),
+    );
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.userData.kind = 'islandVolume';
+    return mesh;
   }
 
   addCollider(physics) {
