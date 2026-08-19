@@ -83,10 +83,12 @@ jobs:
           APK=$(ls android/app/build/outputs/apk/release/*.apk | head -n1)
           echo "apk=$APK"
           # Compare the signing certificate fingerprint, not a raw CERT.RSA hash.
-          FP=$(keytool -printcert -jarfile "$APK" | awk -F': ' '/SHA256:/{print $2}' | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+          # Normalize both sides to lowercase hex without colons/spaces.
+          FP_RAW=$(keytool -printcert -jarfile "$APK" | awk -F': ' '/SHA256/{print $2; exit}')
+          FP=$(printf '%s' "$FP_RAW" | tr -d ' :\n\r' | tr '[:upper:]' '[:lower:]')
           echo "fingerprint=$FP" >> $GITHUB_OUTPUT
           echo "APK SHA-256 cert fingerprint: $FP"
-          EXPECT=$(tr -d ' \n' < tools/expected_cert.txt | tr '[:upper:]' '[:lower:]')
+          EXPECT=$(tr -d ' :\n\r' < tools/expected_cert.txt | tr '[:upper:]' '[:lower:]')
           if [ -n "$EXPECT" ] && [ "$EXPECT" != "$FP" ]; then
             echo "Fingerprint mismatch. expected=$EXPECT got=$FP"
             if [ -z "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
