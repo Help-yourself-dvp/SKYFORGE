@@ -16,9 +16,19 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: system-ui, ui-sans-serif, sans-serif; user-select: none; touch-action: none; }
 #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
-#ui-root { position: fixed; inset: 0; pointer-events: none; }
-#ui-root * { pointer-events: none; }
+#ui-root { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
 #ui-root .hit { pointer-events: auto; }
+[hidden],
+#ui-root [hidden],
+.overlay[hidden],
+.buildbar[hidden],
+.build-tools[hidden],
+.inv[hidden],
+.craft[hidden],
+.about[hidden],
+.btn[hidden] {
+  display: none !important;
+}
 
 .hud-top {
   position: absolute;
@@ -171,7 +181,6 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 
 .inv, .craft, .buildbar, .about {
   position: absolute;
-  pointer-events: auto;
 }
 .inv, .craft, .about {
   left: 50%; top: 50%;

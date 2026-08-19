@@ -10,6 +10,7 @@ export class HUD {
     this.toastT = 0;
     this.holdNew = 0;
     this.holdingNew = false;
+    this.aboutOpen = false;
     this._build();
     this._bind();
   }
@@ -54,14 +55,14 @@ export class HUD {
       </div>
     </div>`);
 
-    this.pause = this._el(`<div class="overlay menu hit" data-ui hidden>
-      <div class="panel">
+    this.pause = this._el(`<div class="overlay menu" data-ui hidden>
+      <div class="panel hit">
         <div class="title-mark">ПАУЗА</div>
-        <button data-menu="resume">Продолжить</button>
-        <button data-menu="build">Строительство</button>
-        <button data-menu="inv">Инвентарь</button>
-        <button data-menu="about">О мире</button>
-        <button data-menu="new">Новый мир</button>
+        <button class="hit" data-menu="resume">Продолжить</button>
+        <button class="hit" data-menu="build">Строительство</button>
+        <button class="hit" data-menu="inv">Инвентарь</button>
+        <button class="hit" data-menu="about">О мире</button>
+        <button class="hit" data-menu="new">Новый мир</button>
         <div class="holdbar"><i></i></div>
         <div class="ver">${VERSION}</div>
       </div>
@@ -72,7 +73,7 @@ export class HUD {
     this.about = this._el(`<div class="about hit" data-ui hidden>
       <div class="title-mark">О МИРЕ</div>
       <p>Парящий архипелаг живёт своей погодой и весом. Дерево падает. Машина собирается из частей. Свет держит ночь.</p>
-      <button class="rowbtn" data-menu="resume">Закрыть</button>
+      <button class="rowbtn hit" data-menu="resume">Закрыть</button>
     </div>`);
     this.buildbar = this._el(`<div class="buildbar hit" data-ui hidden></div>`);
     this.buildTools = this._el(`<div class="build-tools" hidden>
@@ -151,6 +152,12 @@ export class HUD {
     });
   }
 
+  _open(el, on) {
+    if (!el) return;
+    if (on) el.removeAttribute('hidden');
+    else el.setAttribute('hidden', '');
+  }
+
   _menu(id) {
     this.game.audio.play('ui');
     if (id === 'resume') this.game.resume();
@@ -163,10 +170,10 @@ export class HUD {
       this.game.toggleInventory();
     }
     if (id === 'about') {
-      this.about.hidden = false;
-      this.pause.hidden = true;
+      this.aboutOpen = true;
+      this._open(this.about, true);
     }
-    if (id === 'new') this.holdNew = 0.01;
+    if (id === 'resume') this.aboutOpen = false;
   }
 
   toast(text) {
@@ -210,13 +217,14 @@ export class HUD {
     this.invBtn.style.display = explore ? '' : 'none';
     this.pauseBtn.style.display = g.state === 'title' ? 'none' : '';
     this.top.style.display = g.state === 'title' ? 'none' : '';
-    this.title.hidden = g.state !== 'title';
-    this.pause.hidden = g.state !== 'pause';
-    this.inv.hidden = g.state !== 'inventory';
-    this.craft.hidden = g.state !== 'craft';
-    this.buildbar.hidden = g.state !== 'build';
-    this.buildTools.hidden = g.state !== 'build';
-    this.flip.hidden = !(g.state === 'drive' && g.machine.flipTimer > 2.5);
+    this._open(this.title, g.state === 'title');
+    this._open(this.pause, g.state === 'pause');
+    this._open(this.inv, g.state === 'inventory');
+    this._open(this.craft, g.state === 'craft');
+    this._open(this.buildbar, g.state === 'build');
+    this._open(this.buildTools, g.state === 'build');
+    this._open(this.flip, g.state === 'drive' && g.machine.flipTimer > 2.5);
+    if (g.state !== 'pause') this._open(this.about, false);
 
     if (g.state === 'inventory') this._inv();
     if (g.state === 'craft') this._craft();
