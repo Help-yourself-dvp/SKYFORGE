@@ -1,0 +1,128 @@
+name: android
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Create a GitHub Release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install
+        run: npm ci
+
+      - name: Validate version
+        run: |
+          VER=$(tr -d '[:space:]' < version.txt)
+          PKG=$(node -p "require('./package.json').version")
+          echo "version.txt=$VER package.json=$PKG"
+          test "$VER" = "$PKG"
+
+      - name: Web build
+        run: npm run build
+
+      - name: Capacitor sync
+        run: npx cap sync android
+
+      - name: Keystore
+        run: |
+          mkdir -p android/keystore
+          if [ -n "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > android/keystore/debug.keystore
+          else
+            cp tools/debug.keystore android/keystore/debug.keystore
+          fi
+
+      - name: Version code
+        run: |
+          if [ -n "${{ github.run_number }}" ]; then
+            echo "VERSION_CODE=${{ github.run_number }}" >> $GITHUB_ENV
+          else
+            echo "VERSION_CODE=1" >> $GITHUB_ENV
+          fi
+          echo "VERSION_NAME=$(tr -d '[:space:]' < version.txt)" >> $GITHUB_ENV
+
+      - name: Assemble release
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ env.VERSION_CODE }}
+          VERSION_NAME: ${{ env.VERSION_NAME }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Certificate fingerprint
+        id: cert
+        run: |
+          APK=$(ls android/app/build/outputs/apk/release/*.apk | head -n1)
+          echo "apk=$APK"
+          # Compare the signing certificate fingerprint, not a raw CERT.RSA hash.
+          FP=$(keytool -printcert -jarfile "$APK" | awk -F': ' '/SHA256:/{print $2}' | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+          echo "fingerprint=$FP" >> $GITHUB_OUTPUT
+          echo "APK SHA-256 cert fingerprint: $FP"
+          EXPECT=$(tr -d ' \n' < tools/expected_cert.txt | tr '[:upper:]' '[:lower:]')
+          if [ -n "$EXPECT" ] && [ "$EXPECT" != "$FP" ]; then
+            echo "Fingerprint mismatch. expected=$EXPECT got=$FP"
+            if [ -z "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
+              exit 1
+            else
+              echo "Secret keystore in use; documenting actual fingerprint."
+            fi
+          fi
+
+      - name: Rename APK
+        run: |
+          VER=$(tr -d '[:space:]' < version.txt)
+          SRC=$(ls android/app/build/outputs/apk/release/*.apk | head -n1)
+          mkdir -p dist-apk
+          cp "$SRC" "dist-apk/skyforge-$VER.apk"
+          echo "APK_PATH=dist-apk/skyforge-$VER.apk" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: skyforge-${{ env.VERSION_NAME }}
+          path: dist-apk/skyforge-${{ env.VERSION_NAME }}.apk
+
+      - name: Publish release
+        if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.publish_release == 'true' || github.event.inputs.publish_release == true) }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION_NAME }}-${{ github.sha }}
+          name: SKYFORGE ${{ env.VERSION_NAME }}
+          target_commitish: ${{ github.sha }}
+          body: |
+            SKYFORGE ${{ env.VERSION_NAME }}
+
+            Commit: ${{ github.sha }}
+            Certificate SHA-256: ${{ steps.cert.outputs.fingerprint }}
+
+            See RELEASE_NOTES.md
+          files: dist-apk/skyforge-${{ env.VERSION_NAME }}.apk
+          fail_on_unmatched_files: true

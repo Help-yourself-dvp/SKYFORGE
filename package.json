@@ -1,0 +1,30 @@
+{
+  "name": "skyforge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SKYFORGE — Кузница Небес. Physical survival sandbox on a living sky archipelago.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "preview:html": "python3 tools/build_preview.py",
+    "cap:sync": "npx cap sync android",
+    "android:build": "node tools/android-build.mjs",
+    "shot": "node tools/shot/shoot.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.0",
+    "@capacitor/core": "6.2.0",
+    "@dimforge/rapier3d-compat": "0.14.0",
+    "three": "0.160.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.2.0",
+    "typescript": "5.6.3",
+    "vite": "5.4.11"
+  }
+}

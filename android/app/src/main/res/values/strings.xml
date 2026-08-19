@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SKYFORGE</string>
+    <string name="title_activity_main">SKYFORGE</string>
+    <string name="package_name">com.skyforge.game</string>
+    <string name="custom_url_scheme">com.skyforge.game</string>
+</resources>
