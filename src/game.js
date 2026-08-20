@@ -23,6 +23,7 @@ import { DayNight } from './world/daynight.js';
 import { Weather } from './world/weather.js';
 import { Wind } from './sim/wind.js';
 import { Growth } from './sim/growth.js';
+import { ModelLib } from './gfx/model_lib.js';
 import { Player } from './player/player.js';
 import { GameCamera } from './player/camera.js';
 import { Interact } from './player/interact.js';
@@ -69,6 +70,8 @@ export class Game {
 
   async init() {
     await initRapier();
+    this.models = new ModelLib();
+    await this.models.init();
     this.gfx = new Gfx(this.canvas);
     if (this.query.quality) this.gfx.setQuality(this.query.quality);
     this.qualityName = this.gfx.qualityName;
@@ -291,18 +294,34 @@ export class Game {
 
   _placeCampfire(p) {
     const g = new THREE.Group();
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.38, 0.07, 6, 12),
-      new THREE.MeshStandardMaterial({ color: 0x6d6a66, roughness: 0.9 }),
-    );
-    ring.rotation.x = Math.PI / 2;
-    const logs = new THREE.Mesh(
-      new THREE.BoxGeometry(0.5, 0.12, 0.18),
-      new THREE.MeshStandardMaterial({ color: 0x5a3a28 }),
-    );
+    const stones = this.models?.ready ? this.models.get('campfire_stones') : null;
+    const logs = this.models?.ready ? this.models.get('campfire_logs') : null;
+    if (stones) {
+      stones.position.y = 0.01;
+      stones.userData.kind = 'campfire';
+      g.add(stones);
+    } else {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.38, 0.07, 6, 12),
+        new THREE.MeshStandardMaterial({ color: 0x6d6a66, roughness: 0.9 }),
+      );
+      ring.rotation.x = Math.PI / 2;
+      g.add(ring);
+    }
+    if (logs) {
+      logs.position.y = 0.05;
+      logs.userData.kind = 'campfire';
+      g.add(logs);
+    } else {
+      const logsMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.12, 0.18),
+        new THREE.MeshStandardMaterial({ color: 0x5a3a28 }),
+      );
+      g.add(logsMesh);
+    }
     const glow = new THREE.PointLight(0xff7a32, 0, 7, 1.6);
     glow.position.y = 0.4;
-    g.add(ring, logs, glow);
+    g.add(glow);
     g.position.copy(p);
     g.userData.kind = 'campfire';
     this.gfx.scene.add(g);

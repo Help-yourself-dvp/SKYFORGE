@@ -76,6 +76,10 @@ export class Flora {
     const mesh = this._meshFor(kind, stage);
     mesh.position.copy(pos);
     mesh.userData.kind = 'plant';
+    mesh.userData.baseScale = mesh.scale.x || 1;
+    // Apply the initial growth stage right away so a young plant isn't full
+    // size for the first second before the growth tick.
+    mesh.scale.setScalar(mesh.userData.baseScale * Math.max(0.15, stage / 3));
     this.group.add(mesh);
     const rec = { id: `pl_${this.plants.length}`, kind, stage, mesh, pos: pos.clone(), dirty: false, ...extra };
     this.plants.push(rec);
@@ -83,6 +87,22 @@ export class Flora {
   }
 
   _meshFor(kind, stage) {
+    // Kenney Nature Kit GLB models first (origin at feet, already scaled).
+    const pools = {
+      flower: ['flower_purpleA', 'flower_redA', 'flower_yellowA'],
+      bush: ['plant_bushSmall', 'plant_bush'],
+      fern: ['plant_flatShort', 'plant_flatTall'],
+      mushroom: ['mushroom_red', 'mushroom_tan'],
+    };
+    const pool = pools[kind];
+    if (pool && this.game.models?.ready) {
+      const name = pool[this.plants.length % pool.length];
+      const g = this.game.models.get(name);
+      if (g) {
+        g.userData.kind = 'plant';
+        return g;
+      }
+    }
     const s = 0.35 + stage * 0.28;
     const g = new THREE.Group();
     if (kind === 'flower') {
@@ -199,8 +219,9 @@ export class Flora {
     for (const p of this.plants) {
       if (!p.dirty) continue;
       p.dirty = false;
+      const base = p.mesh.userData.baseScale || 1;
       const vis = Math.max(0.15, p.stage / 3);
-      p.mesh.scale.setScalar(vis);
+      p.mesh.scale.setScalar(base * vis);
       p.mesh.visible = p.stage > 0.05;
     }
   }

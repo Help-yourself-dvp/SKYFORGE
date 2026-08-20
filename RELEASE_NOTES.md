@@ -26,6 +26,12 @@
 Скачайте `skyforge-0.1.0.apk` из GitHub Actions artifact.  
 Release публикуется только вручную через `workflow_dispatch`.
 
+## Природа (Kenney Nature Kit, CC0)
+
+- Деревья, камни, пни, брёвна, цветы, кусты, грибы и костёр теперь —
+  готовые low-poly GLB-модели (встроены в bundle, игра офлайн).
+- Источник: Kenney Nature Kit (CC0) — см. `THIRD_PARTY.md`.
+
 ## Стабилизационный проход (device stabilization)
 
 - Исправлен freeze ~5–7 с после старта: необработанное исключение убивало RAF-цикл.

@@ -25,7 +25,10 @@ const { Water } = await import('../../src/gfx/water.js');
 const { Particles } = await import('../../src/gfx/particles.js');
 const { emptyInventory } = await import('../../src/craft/resources.js');
 const { emptyBuildStock } = await import('../../src/build/inventory.js');
+const { ModelLib } = await import('../../src/gfx/model_lib.js');
 await initRapier();
+const models = new ModelLib();
+await models.init();
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(52, 1, 0.18, 320);
 scene.fog = new THREE.Fog(0xc5d4c6, 24, 150);
@@ -33,7 +36,7 @@ const gfx = { scene, camera, quality: QUALITY.MEDIUM, qualityName: 'MEDIUM',
   renderer: { info: { render: { calls: 0, triangles: 0 } }, setSize(){}, setPixelRatio(){}, render(){}, dispose(){} },
   resize(){}, setQuality(){}, render(){}, dispose(){},
   initWorld(pond){ this.water = new Water(scene, pond); this.particles = new Particles(scene, this.quality.particles); this.sky = new Sky(scene); } };
-const game = { gfx, state: 'explore', simPaused: false, disposed: false, time: 0, placed: [], progress: {fruit:0,trees:0,driven:0,nightFire:0},
+const game = { gfx, models, state: 'explore', simPaused: false, disposed: false, time: 0, placed: [], progress: {fruit:0,trees:0,driven:0,nightFire:0},
   tools: [], inventory: emptyInventory(), buildStock: emptyBuildStock(), unlocks: {}, hasTorch: false, hasLantern: false, seenHorizon: 0, autosaveT: 0,
   audio: { play(){}, setMotor(){}, update(){}, resume(){}, dispose(){}, activeNodes(){return 0} }, ui: { toast(){}, flash(){}, update(){} },
   toast(){}, saveNow(){}, newWorld(){}, lightsources(){ return []; }, notifyProgress(){}, onTreeFell(){}, pickupResource(){}, respawnFromDeath(){},
@@ -56,6 +59,7 @@ game.daynight = new DayNight();
 game.workshop = new Workshop(game, new THREE.Vector3(game.world.main.workshop.x, game.world.heightAt(game.world.main.workshop.x, game.world.main.workshop.z), game.world.main.workshop.z));
 game.flora = new Flora(game); game.flora.generate(game.world.main, game.rng);
 game.resources = new Resources(game); game.resources.generate(game.world.main, game.rng);
+console.log('trees:', game.resources.trees.length, 'first tree glb?', game.resources.trees[0].mesh.userData.modelName || 'procedural');
 game.fauna = new Fauna(game); game.fauna.generate(game.world.main, game.rng);
 game.enemies = new Enemies(game);
 game.player = new Player(game);

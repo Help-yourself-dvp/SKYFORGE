@@ -40,7 +40,10 @@ async function main() {
   const { Dbg } = await import('../../src/dbg.js');
   const { emptyInventory, grant } = await import('../../src/craft/resources.js');
   const { emptyBuildStock } = await import('../../src/build/inventory.js');
+  const { ModelLib } = await import('../../src/gfx/model_lib.js');
   await initRapier();
+  const models = new ModelLib();
+  await models.init();
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(52, 1, 0.18, 320);
   scene.fog = new THREE.Fog(0xc5d4c6, 24, 150);
@@ -67,6 +70,7 @@ async function main() {
   // ---- fake game object mirroring Game fields used by subsystems ----
   const game = {
     gfx,
+    models,
     version: '0.1.0',
     state: 'explore',
     simPaused: false,
