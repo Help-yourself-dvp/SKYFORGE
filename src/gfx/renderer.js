@@ -5,17 +5,26 @@ import { Water } from './water.js';
 import { PostFX } from './postfx.js';
 import { Particles } from './particles.js';
 
+function isCapacitor() {
+  try {
+    return !!(typeof window !== 'undefined' && window.Capacitor);
+  } catch (_) {
+    return false;
+  }
+}
+
 export class Gfx {
   constructor(canvas) {
     this.canvas = canvas;
-    this.qualityName = 'HIGH';
-    this.quality = QUALITY.HIGH;
+    this.android = isCapacitor();
+    this.qualityName = this.android ? 'MEDIUM' : 'HIGH';
+    this.quality = QUALITY[this.qualityName];
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0xc5d4c6, 24, 150);
     this.camera = new THREE.PerspectiveCamera(52, 1, 0.18, 320);
     this.renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: true,
+      antialias: !this.android,
       alpha: false,
       powerPreference: 'high-performance',
     });
@@ -25,20 +34,15 @@ export class Gfx {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.setClearColor(0x9ec4c8, 1);
-    let mobile = false;
-    try {
-      mobile = !!(typeof window !== 'undefined' && (window.Capacitor || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)));
-    } catch (_) { mobile = true; }
-    this.dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.35 : 1.75);
+    this.dpr = Math.min(window.devicePixelRatio || 1, this.android ? 1.25 : 1.75);
     this.renderer.setPixelRatio(this.dpr);
-    this.qualityName = mobile ? 'MEDIUM' : 'HIGH';
-    this.quality = QUALITY[this.qualityName];
     this.sky = new Sky(this.scene);
-    this.post = new PostFX(this.renderer, this.scene, this.camera);
+    this.post = new PostFX(this.renderer, this.scene, this.camera, { skipComposer: this.android });
     this.particles = null;
     this.water = null;
     this._fps = 60;
-    this._adapt = 0;
+    this._w = 0;
+    this._h = 0;
   }
 
   initWorld(pond) {
@@ -46,38 +50,32 @@ export class Gfx {
     this.particles = new Particles(this.scene, this.quality.particles);
   }
 
-  setQuality(name) {
-    const q = QUALITY[name] || QUALITY.MEDIUM;
-    this.qualityName = QUALITY[name] ? name : 'MEDIUM';
-    this.quality = q;
-    this.sky.setShadowSize(q.shadow);
-    this.post.setBloom(q.bloom);
-    if (this.particles) this.particles.quality = q.particles;
+  setQuality() {
+    /* Quality is fixed after boot. Changing shadow map size mid-session
+       reallocates GPU memory and freezes Honor WebView. */
   }
 
   resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
+    if (w === this._w && h === this._h) return;
+    this._w = w;
+    this._h = h;
     this.camera.aspect = Math.max(0.1, w / Math.max(1, h));
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
     this.post.setSize(w, h);
   }
 
-  adapt(fps) {
-    this._fps = this._fps * 0.9 + fps * 0.1;
-    this._adapt += 1;
-    if (this._adapt < 480) return;
-    this._adapt = 0;
-    if (this._fps < 38 && this.qualityName === 'HIGH') this.setQuality('MEDIUM');
-    else if (this._fps < 30 && this.qualityName === 'MEDIUM') this.setQuality('LOW');
+  adapt() {
+    /* disabled: 480-frame quality switch recreated GPU resources ~8s in */
   }
 
   render() {
     try {
       this.post.render();
     } catch (e) {
-      console.warn('postfx fail, raw render', e);
+      console.warn('render fail, raw', e);
       this.post.enabled = false;
       this.renderer.render(this.scene, this.camera);
     }

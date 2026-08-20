@@ -87,7 +87,7 @@ Fix:
 - fade ствола/кроны, если дерево между камерой и игроком;
 - визуальный объём острова: irregular cliff shell + скальное днище (без второго physics terrain).
 
-Launch crash after bd8b758: `new RAPIER.Ray` в конструкторе PhysicsWorld мог валить init на WebView («Ошибка запуска»). Ray создаётся лениво. На экране теперь виден stack. `wish` ReferenceError при ходьбе исправлен.
+Idle freeze ~7–10s on Honor (no touch): matches ~480 frames then `adapt()` changing shadow map size / EffectComposer `setSize` after immersive resize. Android now skips composer entirely, quality is fixed after boot, resize no-ops if dimensions unchanged, game loop catches exceptions so one throw cannot kill RAF.
 
 Остаточные риски: без device trace нельзя исключить GPU/WebView hang от InstancedMesh grass. Soak 60s в этой среде без WebGL не прогонялся.
 

@@ -459,7 +459,6 @@ export class Game {
     this.ui.update(dt);
     this.dbg.update(dt);
     this.qualityName = this.gfx.qualityName;
-    this.gfx.adapt(this.dbg.fps || 60);
 
     if (!paused) {
       this.autosaveT += dt;

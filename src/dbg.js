@@ -17,24 +17,21 @@ export class Dbg {
   collect() {
     const g = this.game;
     const info = g.gfx?.renderer?.info;
-    const scene = g.gfx?.scene;
-    let threeObjects = 0;
-    if (scene) scene.traverse(() => { threeObjects += 1; });
     const p = g.player?.position;
     return {
       t: Number(((performance.now() - this.startedAt) / 1000).toFixed(1)),
       fps: Number(this.fps.toFixed(1)),
       frame: Number(this.frameMs.toFixed(1)),
       state: g.state,
-      bodies: g.physics?.bodyCount?.() ?? 0,
-      colliders: g.physics?.colliderCount?.() ?? 0,
+      bodies: g.physics?.sync?.entities?.length ?? 0,
+      colliders: g.physics?.sync?.entities?.length ?? 0,
       joints: g.physics?.jointCount?.() ?? 0,
-      threeObjects,
+      threeObjects: g.gfx?.scene?.children?.length ?? 0,
       drawCalls: info?.render?.calls ?? 0,
       triangles: info?.render?.triangles ?? 0,
       particles: g.gfx?.particles?.items?.length ?? 0,
       audioNodes: g.audio?.activeNodes?.() ?? 0,
-      sceneChildren: scene?.children?.length ?? 0,
+      sceneChildren: g.gfx?.scene?.children?.length ?? 0,
       animals: g.fauna?.animals?.length ?? 0,
       plants: g.flora?.plants?.length ?? 0,
       px: p ? Number(p.x.toFixed(2)) : null,
@@ -65,15 +62,9 @@ export class Dbg {
       `frame=${s.frame}`,
       `state=${s.state}`,
       `bodies=${s.bodies}`,
-      `colliders=${s.colliders}`,
-      `joints=${s.joints}`,
-      `threeObjects=${s.threeObjects}`,
-      `drawCalls=${s.drawCalls}`,
-      `triangles=${s.triangles}`,
       `particles=${s.particles}`,
       `audioNodes=${s.audioNodes}`,
     ].join(' ');
     if (this.enabled) console.log(`[DBG] ${this.last}`);
-    try { this.game.gfx?.renderer?.info?.reset(); } catch (_) { /* */ }
   }
 }
