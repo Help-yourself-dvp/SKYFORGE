@@ -6,7 +6,7 @@ const _fdir = new THREE.Vector3();
 
 const ARCH = {
   TRAILBEAST: { speed: 1.8, flee: 4.2, size: [0.45, 0.55, 0.8], color: 0x8a6a48, mass: 8 },
-  GLIDER: { speed: 3.4, flee: 5, size: [0.9, 0.12, 0.55], color: 0x4a6570, mass: 2.2, fly: true },
+  GLIDER: { speed: 3.4, flee: 5, size: [0.9, 0.12, 0.55], color: 0x5a7a86, mass: 2.2, fly: true },
   CRITTER: { speed: 0.7, flee: 1.6, size: [0.28, 0.18, 0.3], color: 0x6d6a66, mass: 1.6 },
 };
 
@@ -68,32 +68,52 @@ export class Fauna {
 
   _mesh(type, def) {
     const g = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.75 });
+    const mat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.78 });
+    const light = new THREE.MeshStandardMaterial({ color: 0xd8c4a0, roughness: 0.6 });
+    // Meshes are built with the origin at the FEET so the group sits on the
+    // terrain (no floating animals).
     if (type === 'TRAILBEAST') {
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.32, 0.7), mat);
-      body.position.y = 0.38;
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.28), mat);
-      head.position.set(0, 0.5, 0.42);
-      const legG = new THREE.BoxGeometry(0.08, 0.28, 0.08);
-      for (const [x, z] of [[-0.12, 0.22], [0.12, 0.22], [-0.12, -0.22], [0.12, -0.22]]) {
-        const l = new THREE.Mesh(legG, mat);
-        l.position.set(x, 0.14, z);
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.5, 4, 10), mat);
+      body.rotation.x = Math.PI / 2;
+      body.position.y = 0.48;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), mat);
+      head.position.set(0, 0.56, 0.52);
+      const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), light);
+      muzzle.position.set(0, 0.5, 0.66);
+      for (const [x, z] of [[-0.12, 0.24], [0.12, 0.24], [-0.12, -0.24], [0.12, -0.24]]) {
+        const l = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.3, 6), mat);
+        l.position.set(x, 0.15, z);
         g.add(l);
       }
-      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.18, 5), new THREE.MeshStandardMaterial({ color: 0xd8c4a0 }));
-      horn.position.set(0, 0.66, 0.48);
-      g.add(body, head, horn);
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.2, 6), light);
+      horn.position.set(0, 0.74, 0.55);
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.08, 5), mat);
+      ear.position.set(-0.09, 0.7, 0.46);
+      const ear2 = ear.clone();
+      ear2.position.x = 0.09;
+      g.add(body, head, muzzle, horn, ear, ear2);
     } else if (type === 'GLIDER') {
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), mat);
-      const wing = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.04, 0.45), mat);
-      wing.position.y = 0.02;
-      g.add(body, wing);
+      // Sky ray: small body + flat diamond wings, clearly flying.
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), mat);
+      body.position.y = 0.1;
+      const wing = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.025, 0.55), mat);
+      wing.position.y = 0.16;
+      const tail = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.5, 6), mat);
+      tail.rotation.x = Math.PI / 2;
+      tail.position.set(0, 0.1, -0.4);
+      g.add(body, wing, tail);
+      g.userData.wing = wing;
     } else {
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), mat);
-      body.scale.set(1.1, 0.7, 1.2);
-      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.14, 5), mat);
-      spike.position.y = 0.18;
-      g.add(body, spike);
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), mat);
+      body.position.y = 0.18;
+      body.scale.set(1.1, 0.8, 1.2);
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 5), mat);
+        spike.position.set(Math.cos(a) * 0.14, 0.3, Math.sin(a) * 0.16);
+        g.add(spike);
+      }
+      g.add(body);
     }
     g.traverse((o) => {
       if (o.isMesh) {
@@ -213,16 +233,20 @@ export class Fauna {
     }
     let ny;
     if (fly) {
-      const base = 10 + Math.sin(this.game.time * 0.4 + a.yaw) * 2;
+      const base = 13 + Math.sin(this.game.time * 0.4 + a.yaw) * 2.5;
       ny = THREE.MathUtils.lerp(pos.y, base, 1 - Math.pow(0.05, dt));
     } else {
-      ny = island.sample(nx, nz) + (a.type === 'CRITTER' ? 0.18 : 0.35);
+      // Feet on the ground: mesh origins are at the feet now.
+      ny = island.sample(nx, nz) + (a.type === 'CRITTER' ? 0.05 : 0.12);
     }
     a.body.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
     a.mesh.position.set(nx, ny, nz);
     a.mesh.rotation.y = a.yaw;
     if (a.type === 'TRAILBEAST') a.mesh.rotation.z = Math.sin(this.game.time * 8 + a.yaw) * 0.04 * spd;
-    if (a.type === 'GLIDER') a.mesh.rotation.z = Math.sin(this.game.time * 2 + a.yaw) * 0.15;
+    if (a.type === 'GLIDER') {
+      a.mesh.rotation.z = Math.sin(this.game.time * 2 + a.yaw) * 0.12;
+      if (a.mesh.userData.wing) a.mesh.userData.wing.rotation.z = Math.sin(this.game.time * 5 + a.yaw) * 0.18;
+    }
     if (a.state === 'flee' && a.type === 'CRITTER') a.mesh.scale.y = 0.55;
     else a.mesh.scale.y = 1;
   }

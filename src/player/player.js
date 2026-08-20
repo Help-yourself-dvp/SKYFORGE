@@ -45,19 +45,19 @@ export class Player {
     const brass = new THREE.MeshStandardMaterial({ color: 0xc4a15a, metalness: 0.5, roughness: 0.4 });
 
     this.hips = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.2), dark);
-    this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.42, 0.22), cloth);
-    this.head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.22), skin);
-    this.mask = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.1, 0.06), dark);
-    this.lArm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.38, 0.1), cloth);
-    this.rArm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.38, 0.1), cloth);
-    this.lLeg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.46, 0.12), dark);
-    this.rLeg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.46, 0.12), dark);
+    this.torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.24, 4, 10), cloth);
+    this.head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 12, 10), skin);
+    this.mask = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 0.05), dark);
+    this.lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.38, 6), cloth);
+    this.rArm = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.38, 6), cloth);
+    this.lLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.46, 6), dark);
+    this.rLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.46, 6), dark);
     this.hips.position.y = 0.78;
     this.torso.position.y = 1.08;
-    this.head.position.y = 1.42;
-    this.mask.position.set(0, 1.4, 0.12);
-    this.lArm.position.set(-0.26, 1.02, 0);
-    this.rArm.position.set(0.26, 1.02, 0);
+    this.head.position.y = 1.44;
+    this.mask.position.set(0, 1.42, 0.105);
+    this.lArm.position.set(-0.24, 1.02, 0);
+    this.rArm.position.set(0.24, 1.02, 0);
     this.lLeg.position.set(-0.1, 0.4, 0);
     this.rLeg.position.set(0.1, 0.4, 0);
     g.add(this.hips, this.torso, this.head, this.mask, this.lArm, this.rArm, this.lLeg, this.rLeg);
@@ -126,8 +126,11 @@ export class Player {
 
     const axis = input.axis || { x: 0, y: 0 };
     const fwd = cam.forward();
-    const rx = fwd.z;
-    const rz = -fwd.x;
+    // Camera-relative right = cross(forward, up) = (-fwd.z, 0, fwd.x).
+    // (fwd.z, -fwd.x) would be LEFT for cameras looking along -Z — that
+    // mirrored every stick direction.
+    const rx = -fwd.z;
+    const rz = fwd.x;
     _wish.set(fwd.x * axis.y + rx * axis.x, 0, fwd.z * axis.y + rz * axis.x);
     const moving = _wish.length() > 0.05;
     if (moving) _wish.normalize();
@@ -296,8 +299,9 @@ export class Player {
   respawnSafe() {
     this.falling = 0;
     this.vy = 0;
-    const p = this.lastSafe;
-    this.setPosition(p.x, p.y + 0.4, p.z);
+    const p = this.game.findSafeSpawn ? this.game.findSafeSpawn(this.lastSafe) : this.lastSafe;
+    this.setPosition(p.x, p.y, p.z);
+    this.lastSafe.copy(p);
     this.game.ui?.flash?.();
   }
 

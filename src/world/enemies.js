@@ -37,9 +37,10 @@ export class Enemies {
       const r = 22 + i * 3;
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
-      const y = island.sample(x, z) + 0.7;
+      const y = island.sample(x, z) + 0.1;
       this.shades.push(this._make(new THREE.Vector3(x, y, z), `shade_${i}`));
     }
+    this.game.toast?.('Тени. Свет держит их на расстоянии.');
   }
 
   _make(pos, id) {
@@ -49,18 +50,24 @@ export class Enemies {
       roughness: 0.45,
       metalness: 0.1,
       emissive: 0x1a2340,
-      emissiveIntensity: 0.35,
+      emissiveIntensity: 0.4,
     });
-    const torso = new THREE.Mesh(new THREE.DodecahedronGeometry(0.38, 0), bodyMat);
-    torso.scale.set(0.7, 1.3, 0.7);
-    torso.position.y = 0.7;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), bodyMat);
-    head.position.y = 1.35;
-    const eyeM = new THREE.MeshStandardMaterial({ color: 0x8ad0e0, emissive: 0x4ad0e8, emissiveIntensity: 1.4 });
-    const e1 = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5), eyeM);
+    // Grounded shade: low crouched silhouette with legs, origin at the feet.
+    const torso = new THREE.Mesh(new THREE.DodecahedronGeometry(0.34, 0), bodyMat);
+    torso.scale.set(0.8, 1.1, 0.8);
+    torso.position.y = 0.62;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), bodyMat);
+    head.position.y = 1.12;
+    const eyeM = new THREE.MeshStandardMaterial({ color: 0x8ad0e0, emissive: 0x5ad8ec, emissiveIntensity: 1.6 });
+    const e1 = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 5), eyeM);
     const e2 = e1.clone();
-    e1.position.set(-0.08, 1.38, 0.14);
-    e2.position.set(0.08, 1.38, 0.14);
+    e1.position.set(-0.09, 1.16, 0.15);
+    e2.position.set(0.09, 1.16, 0.15);
+    for (const [x, z] of [[-0.14, 0.1], [0.14, 0.1], [-0.14, -0.12], [0.14, -0.12]]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.55, 0.07), bodyMat);
+      leg.position.set(x, 0.28, z);
+      g.add(leg);
+    }
     g.add(torso, head, e1, e2);
     g.position.copy(pos);
     g.userData.kind = 'enemy';
@@ -114,11 +121,11 @@ export class Enemies {
     if (dist > 0.1) dir.multiplyScalar((s.state === 'chase' ? 2.6 : 1.6) / dist);
     const nx = s.mesh.position.x + dir.x * dt;
     const nz = s.mesh.position.z + dir.z * dt;
-    const ny = this.game.world.heightAt(nx, nz) + 0.15 + Math.sin(this.game.time * 3 + s.pos.x) * 0.08;
+    const ny = this.game.world.heightAt(nx, nz) + 0.05 + Math.sin(this.game.time * 3 + s.pos.x) * 0.03;
     s.body.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
     s.mesh.position.set(nx, ny, nz);
     s.mesh.lookAt(nx + dir.x, ny, nz + dir.z);
-    s.mesh.scale.y = 1 + Math.sin(this.game.time * 4 + s.pos.z) * 0.06;
+    s.mesh.scale.y = 1 + Math.sin(this.game.time * 4 + s.pos.z) * 0.04;
 
     if (s.state === 'chase' && s.mesh.position.distanceTo(player) < 1.25 && this.hitCd <= 0) {
       this.hitCd = SURVIVAL.shadeCooldown;

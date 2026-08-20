@@ -60,7 +60,7 @@ export class DayNight {
     this.sunIntensity = 0.22 + day * 1.15;
     this.hemiIntensity = 0.62 + day * 0.72;
     this.fillIntensity = 0.28 + day * 0.32;
-    this.fog.copy(this.horizon).lerp(CA.setHex(0xc5d4c6), 0.45);
+    this.fog.copy(this.horizon).lerp(CA.setHex(0x9fb2b8), 0.45);
     this.zenith.lerp(CB.setHex(0x8ec4dc), 0.18);
     this.horizon.lerp(CC.setHex(0xe6d2b0), 0.12);
   }

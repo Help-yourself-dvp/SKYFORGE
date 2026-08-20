@@ -63,17 +63,17 @@ export class Sky {
     g.userData.kind = 'clouds';
     const geo = new THREE.SphereGeometry(1, 10, 8);
     const mats = [
-      new THREE.MeshBasicMaterial({ color: 0xf4efe6, transparent: true, opacity: 0.42, depthWrite: false, fog: true }),
-      new THREE.MeshBasicMaterial({ color: 0xe8e2d6, transparent: true, opacity: 0.32, depthWrite: false, fog: true }),
+      new THREE.MeshBasicMaterial({ color: 0xece7dd, transparent: true, opacity: 0.24, depthWrite: false, fog: true }),
+      new THREE.MeshBasicMaterial({ color: 0xddd8ce, transparent: true, opacity: 0.16, depthWrite: false, fog: true }),
     ];
     this._cloudMats = mats;
     this._cloudPuffs = [];
     for (let i = 0; i < 18; i++) {
       const c = new THREE.Mesh(geo, mats[i % 2]);
       const a = (i / 18) * Math.PI * 2;
-      const r = 46 + (i % 5) * 10;
-      c.position.set(Math.cos(a) * r, 28 + (i % 4) * 4.2, Math.sin(a) * r);
-      c.scale.set(7 + (i % 3) * 2.4, 2.6 + (i % 2) * 0.6, 5.2 + (i % 4));
+      const r = 72 + (i % 5) * 14;
+      c.position.set(Math.cos(a) * r, 44 + (i % 4) * 5.5, Math.sin(a) * r);
+      c.scale.set(6 + (i % 3) * 1.8, 2.4 + (i % 2) * 0.5, 4.4 + (i % 4) * 0.7);
       c.castShadow = false;
       c.receiveShadow = false;
       c.userData.kind = 'cloud';
@@ -128,7 +128,7 @@ export class Sky {
       c.position.y = c.userData.baseY + Math.sin(this.mat.uniforms.uTime.value * 0.2 + c.userData.phase) * 0.4;
       if (camPos && playerPos) {
         const between = this._cloudBetween(c.position, camPos, playerPos);
-        c.material.opacity = between ? 0.12 : (c.material === this._cloudMats[0] ? 0.4 : 0.3);
+        c.material.opacity = between ? 0.08 : (c.material === this._cloudMats[0] ? 0.24 : 0.16);
       }
     }
   }

@@ -18,8 +18,28 @@ uniform float uNight;
 uniform float uTime;
 varying vec3 vWorld;
 
-float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+float hash3(vec3 p) {
+  return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+}
+
+// Deterministic star field: one star per sparse grid cell, fixed in world
+// direction space (no per-pixel noise -> no TV-static shimmer).
+vec3 stars(vec3 dir, float night) {
+  if (night <= 0.3) return vec3(0.0);
+  float grid = 74.0;
+  vec3 cell = floor(dir * grid);
+  float r = hash3(cell);
+  if (r > 0.2) return vec3(0.0);
+  vec3 off = vec3(
+    hash3(cell + vec3(1.7, 9.2, 4.1)),
+    hash3(cell + vec3(7.3, 2.1, 8.5)),
+    hash3(cell + vec3(3.1, 6.7, 1.9))
+  ) - 0.5;
+  vec3 starDir = normalize(cell + off * 0.7);
+  float ang = acos(clamp(dot(dir, starDir), -1.0, 1.0));
+  float twinkle = 0.78 + 0.22 * sin(uTime * 1.6 + r * 41.0);
+  float b = (0.45 + r * 1.7) * twinkle;
+  return vec3(0.82, 0.87, 1.0) * b * (1.0 - smoothstep(0.006, 0.03, ang));
 }
 
 void main() {
@@ -28,20 +48,17 @@ void main() {
   vec3 col = mix(uHorizon, uZenith, pow(h, 0.85));
 
   float sun = pow(max(dot(dir, normalize(uSunDir)), 0.0), 1400.0 / uSunSize);
-  float glow = pow(max(dot(dir, normalize(uSunDir)), 0.0), 8.0);
-  col += uSunColor * sun * 2.4;
-  col += uSunColor * glow * 0.28;
+  float glow = pow(max(dot(dir, normalize(uSunDir)), 0.0), 7.0);
+  col += uSunColor * sun * 1.8;
+  col += uSunColor * glow * 0.1;
 
   float moon = pow(max(dot(dir, normalize(uMoonDir)), 0.0), 900.0);
-  col += vec3(0.72, 0.78, 0.92) * moon * uNight * 1.4;
+  col += vec3(0.72, 0.78, 0.92) * moon * uNight * 1.5;
 
-  if (uNight > 0.35) {
-    float stars = step(0.996, hash(dir.xz * 180.0 + floor(dir.y * 40.0)));
-    col += vec3(0.85, 0.9, 1.0) * stars * (uNight - 0.35) * 1.6;
-  }
+  col += stars(dir, uNight) * (uNight - 0.3) / 0.7;
 
   float haze = pow(1.0 - abs(dir.y), 3.0);
-  col += uHorizon * haze * 0.15;
+  col += uHorizon * haze * 0.06;
   gl_FragColor = vec4(col, 1.0);
 }
 `;

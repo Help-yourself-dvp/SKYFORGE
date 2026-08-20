@@ -68,14 +68,26 @@ export class HUD {
       </div>
     </div>`);
 
-    this.inv = this._el(`<div class="inv hit" data-ui hidden><div class="title-mark">ЗАПАС</div><div class="slots"></div></div>`);
-    this.craft = this._el(`<div class="craft hit" data-ui hidden><div class="title-mark">ВЕРСТАК</div><div class="slots"></div></div>`);
+    this.inv = this._el(`<div class="inv hit" data-ui hidden>
+      <div class="panel-head"><div class="title-mark">ЗАПАС</div><button class="x hit" data-close="inv">×</button></div>
+      <div class="slots"></div>
+    </div>`);
+    this.craft = this._el(`<div class="craft hit" data-ui hidden>
+      <div class="panel-head"><div class="title-mark">ВЕРСТАК</div><button class="x hit" data-close="craft">×</button></div>
+      <div class="slots"></div>
+    </div>`);
     this.about = this._el(`<div class="about hit" data-ui hidden>
-      <div class="title-mark">О МИРЕ</div>
+      <div class="panel-head"><div class="title-mark">О МИРЕ</div><button class="x hit" data-close="about">×</button></div>
       <p>Парящий архипелаг живёт своей погодой и весом. Дерево падает. Машина собирается из частей. Свет держит ночь.</p>
       <button class="rowbtn hit" data-menu="resume">Закрыть</button>
     </div>`);
-    this.buildbar = this._el(`<div class="buildbar hit" data-ui hidden></div>`);
+    this.buildbar = this._el(`<div class="buildbar hit" data-ui hidden>
+      <div class="panel-head"><div class="title-mark">КОНСТРУКТОР</div>
+        <span class="build-hint">Целься в землю — призрак. Действие — поставить. Пуск — запустить.</span>
+        <button class="x hit" data-close="build">×</button>
+      </div>
+      <div class="build-parts"></div>
+    </div>`);
     this.buildTools = this._el(`<div class="build-tools" hidden>
       <button class="hit" data-build="rotL">Поворот</button>
       <button class="hit" data-build="rotR">Наклон</button>
@@ -93,14 +105,15 @@ export class HUD {
   }
 
   _fillBuild() {
-    this.buildbar.innerHTML = '';
+    const wrap = this.buildbar.querySelector('.build-parts');
+    wrap.innerHTML = '';
     for (const id of PART_ORDER) {
       const b = document.createElement('button');
       b.className = 'part hit';
       b.dataset.part = id;
       const n = this.game.buildStock?.[id] ?? 0;
-      b.textContent = `${PART_DEFS[id].name}\n${n}`;
-      this.buildbar.appendChild(b);
+      b.innerHTML = `<b>${PART_DEFS[id].name}</b><i>${n}</i>`;
+      wrap.appendChild(b);
     }
   }
 
@@ -137,6 +150,12 @@ export class HUD {
       if (this.holdingNew) endHold();
     });
     this.root.addEventListener('click', (e) => {
+      const close = e.target.closest('[data-close]');
+      if (close) {
+        this.aboutOpen = false;
+        this.game.setState('explore');
+        return;
+      }
       const menu = e.target.closest('[data-menu]');
       if (menu) this._menu(menu.dataset.menu);
       const part = e.target.closest('[data-part]');
@@ -271,7 +290,8 @@ export class HUD {
   _buildStock() {
     for (const b of this.buildbar.querySelectorAll('[data-part]')) {
       const id = b.dataset.part;
-      b.textContent = `${PART_DEFS[id].name}\n${this.game.buildStock[id] || 0}`;
+      b.querySelector('b').textContent = PART_DEFS[id].name;
+      b.querySelector('i').textContent = this.game.buildStock[id] || 0;
       b.classList.toggle('on', this.game.build.type === id);
     }
   }

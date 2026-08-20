@@ -173,6 +173,32 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
   border: 1px solid var(--line);
   padding: 28px 26px 20px;
   backdrop-filter: blur(8px);
+  border-radius: 14px;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.panel-head .title-mark { flex: 0 0 auto; }
+.x {
+  margin-left: auto;
+  width: 40px; height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+}
+.x:active { background: rgba(196,161,90,.15); }
+.build-hint {
+  flex: 1;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: .03em;
+  text-align: center;
 }
 .title-mark { font-size: 13px; letter-spacing: .42em; color: var(--brass); }
 .title-name { font-size: 42px; margin: 8px 0 0; letter-spacing: .18em; font-weight: 600; }
@@ -205,12 +231,14 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
   width: min(520px, 90vw);
   background: var(--panel);
   border: 1px solid var(--line);
-  padding: 16px;
+  border-radius: 14px;
+  padding: 14px 16px 16px;
 }
 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .slot {
   min-height: 64px;
   border: 1px solid var(--line);
+  border-radius: 10px;
   padding: 8px;
   font-size: 13px;
 }
@@ -219,21 +247,38 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
   left: 50%;
   bottom: calc(12px + var(--safe-b));
   transform: translateX(-50%);
-  width: min(92vw, 820px);
+  width: min(94vw, 860px);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 10px;
+}
+.build-parts {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 8px;
-  background: var(--panel);
-  border: 1px solid var(--line);
+  padding: 4px 0 2px;
 }
 .buildbar .part {
-  flex: 0 0 78px;
-  height: 64px;
+  flex: 0 0 74px;
+  height: 58px;
   border: 1px solid var(--line);
+  border-radius: 10px;
   color: var(--ink);
   background: transparent;
-  font-size: 11px;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+}
+.buildbar .part b { font-weight: 500; letter-spacing: .02em; }
+.buildbar .part i {
+  font-style: normal;
+  color: var(--brass);
+  font-size: 14px;
 }
 .buildbar .part.on { border-color: var(--brass); background: rgba(196,161,90,.12); }
 .build-tools {

@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { HIT, PLAYER } from '../config.js';
+import { grant } from '../craft/resources.js';
 
 const _dir = new THREE.Vector3();
+const _dir2 = new THREE.Vector3();
 const _from = new THREE.Vector3();
-const _camDir = new THREE.Vector3();
-const _fromP = new THREE.Vector3();
+const _from2 = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1.2, 0);
 
 export class Interact {
@@ -13,6 +14,7 @@ export class Interact {
     this.target = null;
     this.prompt = '';
     this.mode = 'none';
+    this.fiberTarget = null;
   }
 
   update() {
@@ -21,38 +23,54 @@ export class Interact {
       this.target = null;
       this.prompt = '';
       this.mode = 'none';
+      this.fiberTarget = null;
       return;
     }
-    const origin = g.cam.camera.position;
-    const dir = g.cam.camera.getWorldDirection(_camDir);
-    const fromPlayer = _fromP.copy(g.player.position).add(_up);
+    const p = g.player.position;
+    this.target = null;
+    this.mode = 'none';
+    this.prompt = '';
+    this.fiberTarget = null;
+
+    // Aim along the player's facing — the character-based "what am I looking
+    // at" line. (The camera-ray variant pointed backward and made chop/mine/
+    // grab feel dead.)
+    _dir.set(Math.sin(g.player.yaw), -0.14, Math.cos(g.player.yaw)).normalize();
+    _from.copy(p).add(_up);
     let hit = g.physics.raycast(
-      { x: fromPlayer.x, y: fromPlayer.y, z: fromPlayer.z },
-      { x: dir.x, y: dir.y, z: dir.z },
+      { x: _from.x, y: _from.y, z: _from.z },
+      { x: _dir.x, y: _dir.y, z: _dir.z },
       HIT.reach,
       g.player.body,
     );
     if (!hit) {
+      // Low ray to reach ground items (fruit, chunks) at the player's feet.
+      _dir2.set(Math.sin(g.player.yaw), -0.65, Math.cos(g.player.yaw)).normalize();
+      _from2.copy(p);
+      _from2.y += 0.8;
       hit = g.physics.raycast(
-        { x: origin.x, y: origin.y, z: origin.z },
-        { x: dir.x, y: dir.y, z: dir.z },
-        7,
+        { x: _from2.x, y: _from2.y, z: _from2.z },
+        { x: _dir2.x, y: _dir2.y, z: _dir2.z },
+        2.1,
         g.player.body,
       );
-      if (hit && hit.toi > 6) hit = null;
     }
     this.target = hit;
-    this.mode = 'none';
-    this.prompt = '';
 
+    // Carry: deposit at the workshop, otherwise carry/throw.
     if (g.player.carry) {
-      this.prompt = g.player.charging ? 'Бросить' : 'Положить';
-      this.mode = 'carry';
+      const res = g.player.carry.resource || g.player.carry.mesh?.userData.resource;
+      if (res && g.workshop.contains(p)) {
+        this.prompt = 'Сдать в мастерскую';
+        this.mode = 'deposit';
+      } else {
+        this.prompt = g.player.charging ? 'Бросить' : 'Положить';
+        this.mode = 'carry';
+      }
       return;
     }
 
     const pond = g.world.main.pond;
-    const p = g.player.position;
     if (Math.hypot(p.x - pond.x, p.z - pond.z) < pond.radius - 0.6 && p.y < pond.level + 1.4) {
       this.prompt = 'Пить';
       this.mode = 'drink';
@@ -75,14 +93,21 @@ export class Interact {
         this.prompt = 'Срубить';
         this.mode = 'chop';
       } else if (kind === 'rock' || kind === 'ore') {
-        this.prompt = 'Ударить';
+        this.prompt = kind === 'ore' ? 'Добыть руду' : 'Ударить';
         this.mode = 'mine';
       } else if (e.grabbable && (e.mass || 1) <= PLAYER.carryMass) {
-        this.prompt = kind === 'fruit' ? 'Взять' : 'Взять';
+        this.prompt = 'Взять';
         this.mode = 'grab';
-      } else if (kind === 'plant' && e.mesh?.userData.fiber) {
+      }
+    }
+
+    // Fiber bushes have no physics colliders; check proximity directly.
+    if (this.mode === 'none') {
+      const fiber = this._nearFiber();
+      if (fiber) {
         this.prompt = 'Собрать';
         this.mode = 'fiber';
+        this.fiberTarget = fiber;
       }
     }
 
@@ -94,6 +119,21 @@ export class Interact {
 
   _nearCampfire() {
     return this.game.placed?.find((p) => p.kind === 'campfire' && p.mesh.position.distanceTo(this.game.player.position) < 2.2) || null;
+  }
+
+  _nearFiber() {
+    let best = null;
+    let bd = 2.2;
+    const p = this.game.player.position;
+    for (const pl of this.game.flora.plants) {
+      if (!pl.fiber || pl.dead) continue;
+      const d = pl.pos.distanceTo(p);
+      if (d < bd) {
+        bd = d;
+        best = pl;
+      }
+    }
+    return best;
   }
 
   primaryDown() {
@@ -146,7 +186,16 @@ export class Interact {
       this._hit('stone', this.target.ent.rock);
       return;
     }
-    if (this.playerHasTarget()) this._hit('wood', null);
+    if (this.mode === 'fiber' && this.fiberTarget) {
+      const pl = this.fiberTarget;
+      pl.dead = true;
+      pl.dirty = true;
+      pl.stage = 0;
+      grant(g.inventory, 'fiber', 1);
+      g.audio.play('ui');
+      g.toast('Волокно собрано.');
+      return;
+    }
   }
 
   primaryUp() {

@@ -331,14 +331,15 @@ export class Game {
   }
 
   // The machine fell off the world (seat below the island mass): stop it and
-  // bring the player back to the last safe spot instead of falling forever.
+  // bring the player back to the top of the island instead of falling forever.
   machineLost() {
     this.machine.stop();
     this.exitVehicle();
     this.ui.flash();
     this.toast('Телега ушла в небо.');
-    const p = this.player.lastSafe;
-    this.player.setPosition(p.x, p.y + 0.4, p.z);
+    const p = this.findSafeSpawn();
+    this.player.setPosition(p.x, p.y, p.z);
+    this.player.lastSafe.copy(p);
     this.saveNow();
   }
 
@@ -381,10 +382,34 @@ export class Game {
     }
   }
 
+  // Find a spot on TOP of the island near `base` (never the cliff side, which
+  // has low/negative heightAt values from the tapered rim).
+  findSafeSpawn(base) {
+    const anchor = base || this.player?.lastSafe || this.workshop?.pos;
+    let best = null;
+    for (let ring = 0; ring < 6; ring++) {
+      const n = ring === 0 ? 1 : 8;
+      for (let i = 0; i < n; i++) {
+        const a = ring === 0 ? 0 : (i / n) * Math.PI * 2 + ring * 0.35;
+        const r = ring * 2.2;
+        const x = anchor.x + Math.cos(a) * r;
+        const z = anchor.z + Math.sin(a) * r;
+        const y = this.world.heightAt(x, z);
+        if (!best || y > best.y) best = { x, z, y };
+      }
+    }
+    if (!best || best.y < 2.5) {
+      const w = this.workshop.pos;
+      return new THREE.Vector3(w.x + 2, this.world.heightAt(w.x + 2, w.z + 2) + 0.4, w.z + 2);
+    }
+    return new THREE.Vector3(best.x, best.y + 0.5, best.z);
+  }
+
   respawnFromDeath() {
     this.ui.flash();
-    const w = this.workshop.pos;
-    this.player.setPosition(w.x + 2, this.world.heightAt(w.x + 2, w.z + 2) + 0.3, w.z + 2);
+    const p = this.findSafeSpawn();
+    this.player.setPosition(p.x, p.y, p.z);
+    this.player.lastSafe.copy(p);
     this.survival.revive();
     this.player.hide(false);
     if (this.state === STATES.DRIVE) this.setState(STATES.EXPLORE);
@@ -488,8 +513,8 @@ export class Game {
     if (this.gfx.scene.fog) {
       this.gfx.scene.fog.color.copy(this.daynight.fog);
       if ('near' in this.gfx.scene.fog) {
-        this.gfx.scene.fog.near = 22 + this.daynight.night * 6;
-        this.gfx.scene.fog.far = 148 - this.weather.wet * 18;
+        this.gfx.scene.fog.near = 30 + this.daynight.night * 6;
+        this.gfx.scene.fog.far = 168 - this.weather.wet * 18;
       }
     }
     this.physics.sync.apply(this.physics.alpha);

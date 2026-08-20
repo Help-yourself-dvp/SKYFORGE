@@ -18,7 +18,8 @@ export class GameCamera {
   }
 
   addLook(dx, dy) {
-    this.yaw -= dx;
+    // Drag right => camera orbits right (natural orbit).
+    this.yaw += dx;
     this.pitch = THREE.MathUtils.clamp(this.pitch + dy, CAMERA.pitchMin, CAMERA.pitchMax);
   }
 
@@ -70,7 +71,7 @@ export class GameCamera {
     this._keepAboveTerrain(target);
 
     this.look.copy(target);
-    this.look.y += 1.15;
+    this.look.y += 1.35;
     if (this.mode === 'drive' && forwardHint) {
       V3D.copy(target).addScaledVector(forwardHint, 4);
       V3D.y += 1;
