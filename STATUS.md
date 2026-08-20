@@ -118,5 +118,9 @@ Broken baseline: `b2314dea1e32348d6f8a5c8621b67a8cfba70338` (build `b2314de`, "f
 - Rapier WASM раздувает bundle; preview HTML будет большим (~2.6 МБ).
 - Heightfield края острова крутые: редкий drift у обрыва лечится fall-respawn.
 - Телега на слабом устройстве может требовать MEDIUM quality.
-- Без Java/Android SDK локальный `assembleRelease` не подтверждается; CI workflow живёт в `.github/workflows/android.yml` и ждёт первого прогона.
+- В песочнице нет локального Android SDK/Java, а `dl.google.com` и apt заблокированы —
+  локальный `./gradlew assembleRelease` здесь невозможен. APK собирает CI:
+  последний успешный прогон `32347801794` (commit `e1278e3`), артефакт `skyforge-0.1.0`.
+  Certificate SHA-256 подтверждён шагом fingerprint в CI = `tools/expected_cert.txt`
+  (`88:f0:cc:2e:9e:1c:da:f7:0d:ac:4f:bc:79:c8:43:e1:0f:b5:19:40:ce:14:5b:7c:fb:13:2c:93:f3:6f:ad:93`).
 - Первый APK: островная «юбка» бросала тень на весь верх; adaptive quality dispose shadow map вешал Honor WebView — обе проблемы закрыты в текущей ветке (composer выключен на Android, quality заморожена после boot).
