@@ -64,38 +64,59 @@
 
 ## DEVICE STABILIZATION PASS
 
-Broken baseline: `8e45d1e3fd463eaf93c60688d7ab7a13ea51ae30`
+Broken baseline: `b2314dea1e32348d6f8a5c8621b67a8cfba70338` (build `b2314de`, "fix: stop 8s Honor freeze from bloom and quality switch" — freeze сохранялся на устройстве).
 
-Симптом: freeze через 5–7 с gameplay на Honor Magic 8 Pro; камера уходит под terrain.
+Симптом: freeze через ~5–7 с gameplay на Honor Magic 8 Pro даже без действий; камера при некоторых углах уходит под/сквозь поверхность острова и показывает пустоту под terrain.
 
-Root cause (наиболее вероятная, по аудиту кода, не по device trace):
+### Root cause (установлен воспроизводимо, headless soak на реальных системах)
 
-1. Каждый кадр создавался новый `RAPIER.Ray` в camera/interact. Rapier JS обёртки держат WASM-память; на WebView GC опаздывает → рост кучи и зависание через несколько секунд.
-2. Каждый footstep/`_noise` выделял новый `AudioBuffer` + BufferSource + Filter + Gain. Ходьба = шторм audio nodes.
-3. `daynight._eval`, `sky.update`, `camera.update`, `physics.sync.apply` плодили `new Color/Vector3/Quaternion` каждый frame.
-4. Camera collision не проверяла «камера ниже heightmap» и слабо отталкивалась от terrain.
+Главный механизм зависания: **любое необработанное исключение в `update()`/`render()` навсегда убивает requestAnimationFrame-цепочку** — `Game.start()` не имел try/catch (коммит-сообщение предыдущей ветки утверждало обратное, но кода не было). Игра «зависала» при первом же брошенном исключении. Найдены и исправлены конкретные броски:
 
-Fix:
+1. **Rapier WASM panic в fauna** (главный idle-freeze): `Fauna._ai` держал список фруктов `fruits`, отфильтрованный один раз за тик; когда одно животное съедало фрукт (`collectProp` → `removeRigidBody`), следующее животное в том же тике вызывало `body.translation()` на удалённом теле → Rust panic `RuntimeError: unreachable` → необработанное исключение → freeze. Воспроизведено headless при t≈10 с idle; на устройстве (иные FPS/тайминги) — 5–7 с.
+2. **Launch машины**: `p.body.setCcdEnabled(true)` — метода нет в rapier3d-compat 0.14 (CCD задаётся на `RigidBodyDesc`) → TypeError при каждом «Пуск» → freeze.
+3. **Heightfield транспонирован**: `Island` хранил высоты x-fast, Rapier ждёт z-fast (`heights[zi + xi*(ncols+1)]`) → коллайдер острова был искажён на 1–3.5 м относительно визуала → предметы/машины «плавали», камера упиралась в неверную поверхность.
+4. **Raycast'ы Rapier молчат, пока мир не сделал хотя бы один `step()`** (broadphase не инициализирован) → на title/pause камера и interact не видят коллайдеров.
+5. **Колёса машин**: коллайдер-цилиндр создавался без поворота (ось Y вместо оси качения X) → машина раскачивалась на «доньях»; вдобавок `configureMotorVelocity/configureMotorPosition` существуют только у multibody-джойнтов, у impulse-джойнтов их нет — моторы колёс и руль фактически не работали.
+6. **Чертёж тележки**: порты дублировались (часть joint'ов молча дропалась), геометрия не совпадала с якорями портов, fixed-joint'ы между частями с разным yaw заставляли солвер разворачивать части → телега «взлетала» и падала с острова.
 
-- один переиспользуемый Rapier.Ray;
-- один шумовой AudioBuffer + cap живых SFX-нод (18);
-- scratch vectors/colors;
-- particle pool + hard cap 220;
-- physics step без EventQueue, accumulator clamp 0.05 / max 3 substeps / backlog reset;
-- один RAF, cancel перед стартом;
-- spring-arm: Rapier ray + запрет y < terrain+0.85 + плавное возвращение дистанции;
-- fade ствола/кроны, если дерево между камерой и игроком;
-- визуальный объём острова: irregular cliff shell + скальное днище (без второго physics terrain).
+### Fix (конкретные изменения)
 
-Idle freeze ~7–10s on Honor (no touch): matches ~480 frames then `adapt()` changing shadow map size / EffectComposer `setSize` after immersive resize. Android now skips composer entirely, quality is fixed after boot, resize no-ops if dimensions unchanged, game loop catches exceptions so one throw cannot kill RAF.
+- `src/world/fauna.js`: фрукты prune из списка при съедании + проверка `byId.has(e.id)`; `PhysicsWorld.removeEntity` обнуляет `ent.body/collider` после удаления — устаревшие ссылки падают как JS null, а не WASM panic.
+- `src/build/machine.js`: CCD на `RigidBodyDesc` при создании части; убран `setCcdEnabled` из `launch()`. Колёса: цилиндр повёрнут на ось X; привод — свой velocity-контроллер с traction control (срез тяги при крене) + yaw-assist руля; нет мотора impulse-джойнтов.
+- `src/world/island.js`: `addCollider` транспонирует высоты в формат Rapier; высоты за обрывом теперь конически уходят вниз (нет плоской «пустоты»); `_volumeShell` начинается у самой кромки и обнимает профиль поверхности (soil→rock→deep), днище до −16.
+- `src/physics/world.js` + `game.js`: `warm()` — один step после построения мира, чтобы raycast'ы работали с первого кадра (включая title); `Game.start()` обёрнут в try/catch — цикл живёт, ошибка логируется один раз (`dbg.noteError`), при 90+ повторах отключается пост-процесс.
+- `src/build/blueprints.js`/`parts.js`/`joints.js`: тележка пересобрана — все 8 joint'ов с уникальными портами, якоря совпадают, все части с identity-rotation; fixed-joint дополнительно фиксирует текущую относительную ориентацию (frame quat = qB⁻¹·qA) для ручной сборки.
+- `src/player/camera.js`: raycast вперёд + назад (backward probe), `_blocksCamera` (terrain/workshop/rock/ore/tree/crate/log/chunk), жёсткий запрет «камера ниже terrain+0.7», плавное возвращение дистанции. Workshop floor добавлен в physics.sync, чтобы камера его не пробивала.
+- Горячий цикл: убраны аллокации в `interact.update`, `sky._cloudBetween`, `ghost_ctrl.update`, `machine.drive`, campfire-частицы (scratch vectors).
+- `src/dbg.js`: полная строка DBG (bodies/colliders/joints/threeObjects/drawCalls/triangles/particles/timers/audioNodes), `collect()`, watchdog-снимок при длинном кадре, `noteError`; `window.__SKY.getDiagnostics()`.
+- `src/gfx/shaders.js`/`flora.js`/`particles.js`: трава темнее, мельче, зелёно-охристая (не белые штрихи); pollen/firefly меньше; HUD — лёгкие визуальные круги при сохранении hit-области ≥64px.
+- `src/audio.js`: `activeNodes()` для диагностики.
 
-Остаточные риски: без device trace нельзя исключить GPU/WebView hang от InstancedMesh grass. Soak 60s в этой среде без WebGL не прогонялся.
+### Camera defect
+
+Камера проходила под terrain из-за (а) искажённого транспонированного heightfield, (б) мёртвых raycast'ов до первого step, (в) отсутствия обратной проверки «ниже поверхности». Теперь: spring-arm с двумя Rapier-лучами (target→desired и desired→target), clamp `y ≥ heightAt(x,z)+0.7`, workshop в camera-collision set. Headless-свип: 1728 комбинаций yaw/pitch в 6 точках (включая край острова) — проникновений ниже terrain нет.
+
+### Island underside
+
+Визуальный объём: terrain-поверхность (трава/почва у кромки/камень на склонах), `_volumeShell` — irregular оболочка от кромки (soil) через rock к deep-днищу с вершиной −16, 14 скальных пиков. За обрывом высоты конически уходят вниз — при взгляде сбоку/снизу остров читается массой, а не тонкой зелёной плоскостью. Дублирующего physics terrain нет.
+
+### Результаты проверки (headless, реальные системы Three+Rapier в Node)
+
+- Soak idle / night / drive / chaos по 130 симулированных секунд: 0 throws, 0 NaN, counts без runaway (bodies 86→72 стабильно после съедания фруктов, plants/animals фиксированы, particles ≤15).
+- Тележка: drives 24+ м по земле за 20 с (норма DoD ≥15 м), руль поворачивает, выход в walk работает, при падении с острова — machineLost → respawn у мастерской.
+- Камера: 0 м проникновения под terrain.
+
+### Остаточные риски (честно)
+
+- Реальный браузер/WebView в этой среде недоступен (нет Chromium/libnss3, сеть только npm+github) — GPU-специфичные hang'и (Adreno WebGL driver) по-прежнему нельзя исключить; нужен повторный прогон APK на Honor Magic 8 Pro.
+- Телега: устойчивость проверена на SKY-001 у мастерской; на крутых склонах или при ударах о деревья поведение жёсткой машины без подвески может быть резким (руль слегка «дергает»).
+- Heightfield-обрыв: редкий drift у кромки лечится fall-respawn (как и раньше).
+- Часть «ремонта» (joint frame quats, traction control) — инженерные ассисты, а не идеальная физика; для полноценной подвески нужен будущий pass.
 
 ## Known problems
 
-- Rapier WASM раздувает bundle; preview HTML будет большим.
+- Rapier WASM раздувает bundle; preview HTML будет большим (~2.6 МБ).
 - Heightfield края острова крутые: редкий drift у обрыва лечится fall-respawn.
 - Телега на слабом устройстве может требовать MEDIUM quality.
-- Без Java/Android SDK локальный `assembleRelease` не подтверждается.
-- Push workflow-файла в `.github/workflows/` отклонён GitHub App (нет `workflows` permission). Pipeline лежит в `docs/ci/android.yml`.
-- Первый APK: островная «юбка» бросала тень на весь верх — кадр уходил в чёрный; adaptive quality dispose shadow map вешал Honor WebView. Исправлено в текущей ветке.
+- Без Java/Android SDK локальный `assembleRelease` не подтверждается; CI workflow живёт в `.github/workflows/android.yml` и ждёт первого прогона.
+- Первый APK: островная «юбка» бросала тень на весь верх; adaptive quality dispose shadow map вешал Honor WebView — обе проблемы закрыты в текущей ветке (composer выключен на Android, quality заморожена после boot).

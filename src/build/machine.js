@@ -9,6 +9,11 @@ import { machineFilter } from '../physics/materials.js';
 
 const machineGroups = machineFilter();
 
+const _force = new THREE.Vector3();
+const _torque = new THREE.Vector3();
+const _fwd = new THREE.Vector3();
+const _axle = new THREE.Vector3();
+
 export class MachineSystem {
   constructor(game) {
     this.game = game;
@@ -24,8 +29,11 @@ export class MachineSystem {
     this.handbrake = false;
     this.flipTimer = 0;
     this.distance = 0;
-    this.lastPos = null;
+    this.lastPos = new THREE.Vector3();
     this.idSeq = 1;
+    // A launched machine whose seat drops below this is considered lost
+    // (fallen off the island) and the game respawns the player.
+    this.lostY = -22;
   }
 
   _id() {
@@ -44,6 +52,10 @@ export class MachineSystem {
     const desc = RAPIER.RigidBodyDesc.kinematicPositionBased()
       .setTranslation(mesh.position.x, mesh.position.y, mesh.position.z)
       .setRotation({ x: mesh.quaternion.x, y: mesh.quaternion.y, z: mesh.quaternion.z, w: mesh.quaternion.w });
+    // CCD lives on the RigidBodyDesc in this Rapier version; enabling it here
+    // means fast machine parts never tunnel, and Launch must not call
+    // RigidBody.setCcdEnabled (it does not exist in rapier3d-compat 0.14).
+    desc.setCcdEnabled(true);
     const body = this.game.physics.world.createRigidBody(desc);
     const col = this._collider(def);
     col.setCollisionGroups(machineGroups);
@@ -89,7 +101,13 @@ export class MachineSystem {
 
   _collider(def) {
     if (def.shape === 'sphere') return RAPIER.ColliderDesc.ball(def.size[0] * 0.5);
-    if (def.shape === 'cylinder') return RAPIER.ColliderDesc.cylinder(def.size[0] * 0.5, def.size[1] * 0.5);
+    if (def.shape === 'cylinder') {
+      // Wheel: the cylinder must lie along X (the rolling axis), matching the
+      // mesh. An upright cylinder collider makes the machine rock on wobbly
+      // flat bottoms and can launch it.
+      return RAPIER.ColliderDesc.cylinder(def.size[0] * 0.5, def.size[1] * 0.5)
+        .setRotation({ x: 0, y: 0, z: Math.SQRT1_2, w: Math.SQRT1_2 });
+    }
     return RAPIER.ColliderDesc.cuboid(def.size[0] * 0.5, def.size[1] * 0.5, def.size[2] * 0.5);
   }
 
@@ -150,13 +168,14 @@ export class MachineSystem {
     for (const p of this.parts) {
       p.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
       p.body.wakeUp();
-      p.body.setCcdEnabled(true);
+      p.body.setAngularDamping(p.type === 'WHEEL' ? 0.7 : 0.8);
+      p.body.setLinearDamping(0.12);
       p.kinematic = false;
     }
     this.launched = true;
     this.distance = 0;
     const s = this.seat();
-    if (s) this.lastPos = s.mesh.position.clone();
+    if (s) this.lastPos.copy(s.mesh.position);
     this.game.audio.play('launch');
   }
 
@@ -224,65 +243,75 @@ export class MachineSystem {
     const props = this.parts.filter((p) => p.def.thrust);
     const wings = this.parts.filter((p) => p.def.wing);
 
-    const torque = this.throttle * VEHICLE.motorTorque;
-    for (const j of this.joints) {
-      if (j.type !== 'hinge' || !j.joint) continue;
-      const a = this.parts.find((p) => p.id === j.a);
-      const b = this.parts.find((p) => p.id === j.b);
-      const wheel = a?.type === 'WHEEL' ? a : b?.type === 'WHEEL' ? b : null;
-      const steerP = a?.def.steer ? a : b?.def.steer ? b : null;
-      try {
-        if (wheel) {
-          const target = this.handbrake ? 0 : this.throttle * VEHICLE.maxWheelSpeed;
-          const factor = this.handbrake ? VEHICLE.handbrake : 18;
-          if (j.joint.configureMotorVelocity) j.joint.configureMotorVelocity(target, factor);
-          if (this.handbrake && wheel.body) {
-            const av = wheel.body.angvel();
-            wheel.body.setAngvel({ x: av.x * 0.4, y: av.y * 0.4, z: av.z * 0.4 }, true);
-          }
-        } else if (steerP) {
-          const ang = -this.steer * VEHICLE.steerAngle;
-          if (j.joint.configureMotorPosition) j.joint.configureMotorPosition(ang, 80, 8);
-        }
-      } catch (e) {
-        /* motor not supported on this joint instance */
-      }
-    }
+    const seatRef = this.seat();
 
-    for (const m of motors) {
-      if (!m.body) continue;
-      const f = new THREE.Vector3(0, 0, this.throttle * 42);
-      f.applyQuaternion(m.mesh.quaternion);
-      m.body.addForce({ x: f.x, y: f.y, z: f.z }, true);
-    }
-    if (wheels.length && Math.abs(this.throttle) > 0.05) {
-      for (const w of wheels) {
-        const t = new THREE.Vector3(this.throttle * 7.5, 0, 0);
-        t.applyQuaternion(w.mesh.quaternion);
-        w.body.addTorque({ x: t.x, y: t.y, z: t.z }, true);
+    {
+      // ---- rigid-wheel drive ----
+      // Traction control: torque is cut as the chassis pitches away from
+      // level, which stops the cart from wheelie-ing into the sky.
+      let driveScale = 1;
+      if (seatRef) {
+        const up = _fwd.set(0, 1, 0).applyQuaternion(seatRef.mesh.quaternion);
+        driveScale = THREE.MathUtils.clamp((up.y - 0.82) / 0.18, 0, 1);
       }
-    }
-    for (const s of steers) {
-      if (!s.body) continue;
+      for (const w of wheels) {
+        if (!w.body) continue;
+        const av = w.body.angvel();
+        _axle.set(1, 0, 0).applyQuaternion(w.mesh.quaternion);
+        const spin = av.x * _axle.x + av.y * _axle.y + av.z * _axle.z;
+        if (this.handbrake) {
+          // Brake: strongly damp the axle spin.
+          w.body.setAngvel({
+            x: av.x - _axle.x * spin * 0.9,
+            y: av.y,
+            z: av.z,
+          }, true);
+          continue;
+        }
+        const target = this.throttle * VEHICLE.maxWheelSpeed * driveScale;
+        const err = target - spin;
+        const tq = THREE.MathUtils.clamp(err * 1.5, -VEHICLE.wheelTorque, VEHICLE.wheelTorque);
+        _torque.set(tq, 0, 0).applyQuaternion(w.mesh.quaternion);
+        w.body.addTorque({ x: _torque.x, y: _torque.y, z: _torque.z }, true);
+      }
+      // Steering column: impulse joints cannot drive a hinge, so the steer
+      // part stays visual; actual turning comes from the yaw assist below.
+      void steers;
+
+      // The motor pushes along the chassis only when there are no driven
+      // wheels (prop-less builds). A chassis force applied at height pitches
+      // a wheeled machine nose-up until it flies off the island.
+      if (!wheels.length) {
+        for (const m of motors) {
+          if (!m.body) continue;
+          _force.set(0, 0, this.throttle * 42).applyQuaternion(m.mesh.quaternion);
+          m.body.addForce({ x: _force.x, y: _force.y, z: _force.z }, true);
+        }
+      }
     }
     const wind = this.game.wind?.vector || { x: 0, y: 0, z: 0 };
     for (const b of balloons) {
       b.body.addForce({ x: wind.x * 1.6, y: b.def.lift, z: wind.z * 1.6 }, true);
     }
     for (const p of props) {
-      const f = new THREE.Vector3(0, 0, this.throttle * p.def.thrust);
-      f.applyQuaternion(p.mesh.quaternion);
-      p.body.addForce({ x: f.x, y: f.y, z: f.z }, true);
+      _force.set(0, 0, this.throttle * p.def.thrust).applyQuaternion(p.mesh.quaternion);
+      p.body.addForce({ x: _force.x, y: _force.y, z: _force.z }, true);
     }
     this._aero(wings, wind);
 
     const seat = this.seat();
     if (seat) {
-      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(seat.mesh.quaternion);
+      const up = _fwd.set(0, 1, 0).applyQuaternion(seat.mesh.quaternion);
       if (up.y < 0.15) this.flipTimer += dt;
       else this.flipTimer = 0;
-      if (this.lastPos) this.distance += seat.mesh.position.distanceTo(this.lastPos);
-      this.lastPos = seat.mesh.position.clone();
+      this.distance += seat.mesh.position.distanceTo(this.lastPos);
+      this.lastPos.copy(seat.mesh.position);
+      // Yaw assist for non-vehicle machines: impulse joints cannot drive a
+      // hinge, so the steer part stays visual; the torque below turns the
+      // whole machine. (The ray-cast vehicle steers via setWheelSteering.)
+      if (Math.abs(this.steer) > 0.05 && seat.body) {
+        seat.body.addTorque({ x: 0, y: this.steer * 15, z: 0 }, true);
+      }
     }
 
     const rpm = Math.min(1, Math.abs(this.throttle) + (wheels[0]?.body ? Math.hypot(wheels[0].body.angvel().x, wheels[0].body.angvel().z) / 20 : 0));
@@ -295,18 +324,23 @@ export class MachineSystem {
   }
 
   _aero(wings, wind) {
+    const _rel = _torque;
+    const _n = _fwd;
     for (const w of wings) {
       const lv = w.body.linvel();
-      const rel = new THREE.Vector3(lv.x - wind.x, lv.y - (wind.y || 0), lv.z - wind.z);
-      const n = new THREE.Vector3(0, 1, 0).applyQuaternion(w.mesh.quaternion);
-      const speed = rel.length();
+      _rel.set(lv.x - wind.x, lv.y - (wind.y || 0), lv.z - wind.z);
+      const speed = _rel.length();
       if (speed < 0.4) continue;
-      const flow = rel.clone().normalize();
-      const aoa = n.dot(flow);
-      const liftDir = n.clone().multiplyScalar(-aoa);
-      const lift = liftDir.multiplyScalar(speed * speed * 0.35);
-      const drag = flow.multiplyScalar(-speed * speed * 0.08);
-      w.body.addForce({ x: lift.x + drag.x, y: lift.y + drag.y, z: lift.z + drag.z }, true);
+      _n.set(0, 1, 0).applyQuaternion(w.mesh.quaternion);
+      _rel.multiplyScalar(1 / speed);
+      const aoa = _n.dot(_rel);
+      const lx = _n.x * -aoa * speed * speed * 0.35;
+      const ly = _n.y * -aoa * speed * speed * 0.35;
+      const lz = _n.z * -aoa * speed * speed * 0.35;
+      const dx = -_rel.x * speed * speed * 0.08;
+      const dy = -_rel.y * speed * speed * 0.08;
+      const dz = -_rel.z * speed * speed * 0.08;
+      w.body.addForce({ x: lx + dx, y: ly + dy, z: lz + dz }, true);
     }
   }
 

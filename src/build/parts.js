@@ -52,6 +52,7 @@ export const PART_DEFS = {
       port('px', 0.8, 0, 0),
       port('nx', -0.8, 0, 0),
       port('py', 0, 0.08, 0),
+      port('py2', 0.45, 0.08, 0),
     ],
   },
   WHEEL: {
@@ -88,13 +89,17 @@ export const PART_DEFS = {
     id: 'SEAT',
     name: 'Сиденье',
     mass: 2.4,
-    size: [0.55, 0.28, 0.6],
+    size: [0.6, 0.28, 1.6],
     color: 0x6b2430,
     metal: 0.05,
     rough: 0.7,
     seat: true,
+    // Bench seat (long axis along Z): the two down-ports sit exactly on top
+    // of the cart's two beams (spaced +-0.55 in Z), so blueprint joints have
+    // zero anchor offset and all parts keep the identity rotation.
     ports: [
-      port('ny', 0, -0.14, 0),
+      port('ny', 0, -0.14, -0.75),
+      port('ny2', 0, -0.14, 0.75),
       port('pz', 0, 0, 0.3),
       port('nz', 0, 0, -0.3),
     ],
@@ -202,8 +207,8 @@ export function createPartMesh(type) {
   group.add(mesh);
 
   if (type === 'SEAT') {
-    const back = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.42, 0.1), mat);
-    back.position.set(0, 0.28, -0.26);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(def.size[0], 0.42, 0.1), mat);
+    back.position.set(0, 0.28, -def.size[2] * 0.5 + 0.05);
     back.castShadow = true;
     group.add(back);
   }

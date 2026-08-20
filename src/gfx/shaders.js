@@ -100,7 +100,6 @@ uniform vec3 uWind;
 uniform vec3 uPlayer;
 attribute float aPhase;
 attribute float aShade;
-varying vec3 vColor;
 varying float vShade;
 
 void main() {
@@ -109,31 +108,29 @@ void main() {
   float h = uv.y;
   vec3 wpos = (instanceMatrix * vec4(p, 1.0)).xyz;
   float dist = length(wpos.xz - uPlayer.xz);
-  float part = smoothstep(1.8, 0.2, dist) * 0.28;
+  float part = smoothstep(1.8, 0.2, dist) * 0.24;
   float gust = sin(uTime * 1.4 + aPhase + wpos.x * 0.4 + wpos.z * 0.3);
-  p.x += (uWind.x * 0.18 + gust * 0.12) * h * h;
-  p.z += (uWind.z * 0.18 + gust * 0.1) * h * h;
+  p.x += (uWind.x * 0.16 + gust * 0.11) * h * h;
+  p.z += (uWind.z * 0.16 + gust * 0.09) * h * h;
   vec3 away = normalize(vec3(wpos.x - uPlayer.x, 0.0, wpos.z - uPlayer.z) + vec3(0.001, 0.0, 0.0));
   p.x += away.x * part * h;
   p.z += away.z * part * h;
-  #ifdef USE_COLOR
-  vColor = color;
-#else
-  vColor = vec3(0.30, 0.40, 0.24);
-#endif
-  float hide = smoothstep(1.8, 3.2, dist);
+  float hide = smoothstep(1.7, 3.0, dist);
   vShade = aShade * hide;
-  if (dist < 1.7) p.y -= 4.0;
+  if (dist < 1.6) p.y -= 4.0;
   vec4 mv = modelViewMatrix * instanceMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mv;
 }
 `;
 
 export const GRASS_FRAG = /* glsl */ `
-varying vec3 vColor;
 varying float vShade;
 void main() {
-  vec3 col = vColor * (0.62 + vShade * 0.28);
+  // Deep conifer green with ochre variation; darker than the old blades so
+  // the field never reads as white strokes against the bright sky.
+  float mixK = clamp(vShade * 0.6, 0.0, 1.0);
+  vec3 col = mix(vec3(0.30, 0.36, 0.20), vec3(0.46, 0.40, 0.22), mixK);
+  col *= 0.70 + vShade * 0.30;
   gl_FragColor = vec4(col, 1.0);
 }
 `;

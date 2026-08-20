@@ -101,32 +101,49 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
   width: 190px;
   height: 170px;
 }
+/* Touch target stays >=64px; the visual circle is the ::before layer, so the
+   on-screen look is lighter without shrinking the hit area. */
 .btn {
   position: absolute;
-  width: 58px; height: 58px;
+  width: 64px; height: 64px;
   border-radius: 50%;
-  border: 1px solid rgba(196,161,90,.28);
-  background: rgba(12,16,24,.38);
+  border: none;
+  background: transparent;
   color: var(--ink);
-  font-size: 11px;
-  letter-spacing: .06em;
+  font-size: 10px;
+  letter-spacing: .04em;
   display: flex; align-items: center; justify-content: center;
+  padding: 0;
 }
-.btn.a { right: 6px; bottom: 54px; }
-.btn.x { right: 72px; bottom: 14px; }
-.btn.b { right: 72px; bottom: 80px; }
-.btn.atk { right: 6px; bottom: 0; width: 48px; height: 48px; font-size: 10px; }
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  border: 1px solid rgba(196,161,90,.2);
+  background: rgba(10,14,20,.26);
+  transition: background .15s;
+}
+.btn:active::before { background: rgba(196,161,90,.18); }
+.btn span { position: relative; z-index: 1; }
+.btn.a { right: 4px; bottom: 52px; }
+.btn.x { right: 72px; bottom: 10px; }
+.btn.b { right: 72px; bottom: 78px; }
+.btn.atk { right: 4px; bottom: -2px; }
 .btn.inv {
   position: absolute;
   left: calc(138px + var(--safe-l));
-  bottom: calc(20px + var(--safe-b));
-  width: 52px; height: 52px;
+  bottom: calc(18px + var(--safe-b));
 }
 .btn.pause {
   position: absolute;
   top: calc(10px + var(--safe-t));
-  right: calc(12px + var(--safe-r));
-  width: 54px; height: 40px;
+  right: calc(10px + var(--safe-r));
+  width: 56px; height: 40px;
+  border-radius: 8px;
+}
+.btn.pause::before {
+  inset: 4px;
   border-radius: 8px;
 }
 .charge {

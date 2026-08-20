@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
 const KINDS = {
-  pollen: { size: 0.08, color: 0xc8b46a, life: 6, gravity: 0.02 },
-  firefly: { size: 0.12, color: 0xc9e07a, life: 5, gravity: 0 },
+  pollen: { size: 0.055, color: 0xb8a45e, life: 6, gravity: 0.02 },
+  firefly: { size: 0.09, color: 0xb8d06a, life: 5, gravity: 0 },
   chip: { size: 0.1, color: 0x8a6238, life: 0.9, gravity: 9 },
   grit: { size: 0.08, color: 0x8a8478, life: 0.8, gravity: 10 },
   spray: { size: 0.07, color: 0xb7d4d6, life: 0.7, gravity: 3 },

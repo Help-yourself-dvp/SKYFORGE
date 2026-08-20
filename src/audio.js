@@ -179,6 +179,10 @@ export class AudioSys {
     }
   }
 
+  activeNodes() {
+    return this._live;
+  }
+
   setMotor(rpm) {
     this.resume();
     if (!this.ready) return;

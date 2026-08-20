@@ -36,13 +36,13 @@ export class HUD {
     this.charge = this._el(`<div class="charge"></div>`);
     this.stick = this._el(`<div class="stick" data-ui><div class="stick-knob"></div></div>`);
     this.actions = this._el(`<div class="actions" data-ui>
-      <button class="btn a hit" data-act="jump">ПРЫЖОК</button>
-      <button class="btn x hit" data-act="action">ДЕЙСТВИЕ</button>
-      <button class="btn b hit" data-act="build">СБОРКА</button>
-      <button class="btn atk hit" data-act="attack">УДАР</button>
+      <button class="btn a hit" data-act="jump"><span>Прыжок</span></button>
+      <button class="btn x hit" data-act="action"><span>Действие</span></button>
+      <button class="btn b hit" data-act="build"><span>Сборка</span></button>
+      <button class="btn atk hit" data-act="attack"><span>Удар</span></button>
     </div>`);
-    this.invBtn = this._el(`<button class="btn inv hit" data-ui data-act="inventory">СУМКА</button>`);
-    this.pauseBtn = this._el(`<button class="btn pause hit" data-ui data-act="pause">ПАУЗА</button>`);
+    this.invBtn = this._el(`<button class="btn inv hit" data-ui data-act="inventory"><span>Сумка</span></button>`);
+    this.pauseBtn = this._el(`<button class="btn pause hit" data-ui data-act="pause"><span>Пауза</span></button>`);
     this.flashEl = this._el(`<div class="flash"></div>`);
 
     this.title = this._el(`<div class="overlay title hit" data-ui>

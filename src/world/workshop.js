@@ -115,7 +115,18 @@ export class Workshop {
     );
     const floor = RAPIER.ColliderDesc.cuboid(4.2, 0.1, 3.6)
       .setCollisionGroups(interactionGroups(GROUPS.staticWorld, ALL_GROUPS));
-    this.game.physics.world.createCollider(floor, body);
+    const collider = this.game.physics.world.createCollider(floor, body);
+    // Registered in the sync table so the camera collision raycast can see
+    // the workshop floor and never push the camera under/through it.
+    this.game.physics.sync.add({
+      id: 'workshop',
+      kind: 'workshop',
+      body,
+      collider,
+      mesh: this.group,
+      mass: 0,
+      manualSync: true,
+    });
   }
 
   spawnCrates() {

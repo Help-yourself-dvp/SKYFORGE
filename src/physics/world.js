@@ -58,6 +58,15 @@ export class PhysicsWorld {
     this.paused = !!v;
   }
 
+  // Rapier raycasts (castRay) silently miss every collider until the physics
+  // pipeline has stepped at least once. Warm the world right after build so
+  // camera/interaction raycasts work even while the sim is paused (title).
+  warm() {
+    if (this._warmed || this.paused) return;
+    this._warmed = true;
+    this.world.step();
+  }
+
   step(dt, fn) {
     if (this.paused) {
       this.alpha = 1;
@@ -160,6 +169,11 @@ export class PhysicsWorld {
       this.world.removeRigidBody(ent.body);
     }
     this.sync.remove(ent);
+    // Null out the Rapier handles: any stale reference to a removed body must
+    // fail as a normal JS null check, never as a WASM panic ("unreachable"),
+    // which on a phone would kill the render loop.
+    ent.body = null;
+    ent.collider = null;
     const bi = this.buoyant.indexOf(ent);
     if (bi >= 0) this.buoyant.splice(bi, 1);
   }

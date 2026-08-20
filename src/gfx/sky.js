@@ -134,10 +134,12 @@ export class Sky {
   }
 
   _cloudBetween(cloud, cam, player) {
-    const ab = player.clone().sub(cam);
-    const t = Math.max(0, Math.min(1, cloud.clone().sub(cam).dot(ab) / ab.lengthSq()));
-    const closest = cam.clone().add(ab.multiplyScalar(t));
-    return closest.distanceTo(cloud) < 8;
+    V3C.copy(player).sub(cam);
+    const lenSq = Math.max(1e-6, V3C.lengthSq());
+    V3D.copy(cloud).sub(cam);
+    const t = THREE.MathUtils.clamp(V3D.dot(V3C) / lenSq, 0, 1);
+    V3E.copy(cam).addScaledVector(V3C, t);
+    return V3E.distanceTo(cloud) < 8;
   }
 
   dispose() {

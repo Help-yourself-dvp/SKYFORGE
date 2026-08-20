@@ -33,8 +33,14 @@ export class Island {
   heightAt(x, z) {
     const n = this.noise;
     const r = Math.hypot(x, z);
-    const edge = THREE.MathUtils.clamp((this.radius - 2.2 - r) / 9, 0, 1);
-    if (edge <= 0) return -18;
+    // The island is a volume: beyond the rim the terrain keeps tapering down
+    // (cone-like), so there is no giant flat plane under the island and the
+    // underside always reads as a mass.
+    const rimR = this.radius - 2.2;
+    const edge = THREE.MathUtils.clamp((rimR - r) / 9, 0, 1);
+    if (edge <= 0) {
+      return -7 - (r - rimR) * 1.15;
+    }
     let h = 6.4 + n.fbm(x * 0.028, z * 0.028, 5) * 4.6 + n.fbm(x * 0.07 + 8, z * 0.07, 3) * 1.6;
     const pondD = Math.hypot(x - this.pond.x, z - this.pond.z);
     if (pondD < this.pond.radius + 3) {
@@ -97,6 +103,9 @@ export class Island {
     const pos = geo.attributes.position;
     const col = new Float32Array(pos.count * 3);
     const color = new THREE.Color();
+    const COLOR_A = new THREE.Color();
+    const COLOR_B = new THREE.Color();
+    const COLOR_C = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
@@ -111,7 +120,14 @@ export class Island {
       if (slope > 1.6) color.setHex(0x8a7d6c);
       if (y < this.pond.level + 0.25 && zone === 'wet') color.setHex(0x8a7a58);
       const rr = Math.hypot(x, z);
-      if (rr > this.radius - 8) color.lerp(new THREE.Color(0x8a6a42), THREE.MathUtils.clamp((rr - (this.radius - 8)) / 6, 0, 1));
+      // Rim: exposed soil. Beyond the rim: the tapering rocky underside mass.
+      const rimR = this.radius - 2.2;
+      if (rr > this.radius - 8) color.lerp(COLOR_A.setHex(0x8a6a42), THREE.MathUtils.clamp((rr - (this.radius - 8)) / 6, 0, 1));
+      if (rr > rimR) {
+        const k = THREE.MathUtils.clamp((rr - rimR) / 6, 0, 1);
+        color.lerp(COLOR_B.setHex(0x5a4a3a), k * 0.7);
+        color.lerp(COLOR_C.setHex(0x4a4440), k * k * 0.5);
+      }
       color.offsetHSL((this.noise.n2(x * 0.11, z * 0.11)) * 0.03, 0.04, (this.noise.n2(x * 0.2, z * 0.2)) * 0.08);
       col[i * 3] = color.r;
       col[i * 3 + 1] = color.g;
@@ -164,29 +180,40 @@ export class Island {
   }
 
   _volumeShell() {
+    // The shell is the island's volume: a soil rim ring that begins right
+    // under the terrain edge, then rock walls that follow the dome's profile
+    // and sweep down into a tapering rocky tail. No thin-surface gap remains.
     const segs = 48;
     const rings = 7;
     const pos = [];
     const col = [];
     const idx = [];
-    const soil = new THREE.Color(0x8a6a42);
-    const rock = new THREE.Color(0x6d675e);
-    const deep = new THREE.Color(0x3a342e);
+    const soil = new THREE.Color(0x7a5a3a);
+    const rock = new THREE.Color(0x5f5a52);
+    const deep = new THREE.Color(0x34302a);
+    const rimR = this.radius - 2.2;
     for (let j = 0; j < rings; j++) {
       const t = j / (rings - 1);
       for (let i = 0; i < segs; i++) {
         const a = (i / segs) * Math.PI * 2;
-        const wobble = 0.78 + this.noise.n2(Math.cos(a) * 1.7, Math.sin(a) * 1.7) * 0.16;
-        const topR = this.radius * wobble;
-        const botR = this.radius * (0.18 + this.noise.n2(Math.cos(a) * 3.1 + 4, Math.sin(a) * 3.1) * 0.08);
-        const rad = THREE.MathUtils.lerp(topR, botR, t * t);
+        const wobble = 0.94 + this.noise.n2(Math.cos(a) * 1.7, Math.sin(a) * 1.7) * 0.06;
+        const topR = rimR * wobble;
+        const botR = this.radius * (0.16 + this.noise.n2(Math.cos(a) * 3.1 + 4, Math.sin(a) * 3.1) * 0.07);
+        const rad = THREE.MathUtils.lerp(topR, botR, t * t * (0.35 + 0.65 * t));
         const x = Math.cos(a) * rad;
         const z = Math.sin(a) * rad;
-        const topY = this.sample(Math.cos(a) * topR * 0.96, Math.sin(a) * topR * 0.96);
-        const botY = -9 - Math.abs(this.noise.n2(Math.cos(a) * 2, Math.sin(a) * 2)) * 5;
-        const y = THREE.MathUtils.lerp(topY - 0.2, botY, t);
+        // Keep the shell just under the terrain surface near the rim, then
+        // deepen into the dome and finally dive to the tail.
+        const surfY = this.sample(x * 0.99, z * 0.99);
+        const drop = 0.25 + Math.pow(t, 2.2) * 9.5;
+        let y = surfY - drop;
+        if (t > 0.45) {
+          const botY = -7 - Math.abs(this.noise.n2(Math.cos(a) * 2, Math.sin(a) * 2)) * 4;
+          const base = this.sample(x * 0.99, z * 0.99) - (0.25 + Math.pow(0.45, 2.2) * 9.5);
+          y = THREE.MathUtils.lerp(base, botY, (t - 0.45) / 0.55);
+        }
         pos.push(x, y, z);
-        const c = t < 0.18 ? soil : t < 0.55 ? rock : deep;
+        const c = t < 0.2 ? soil : t < 0.55 ? rock : deep;
         col.push(c.r, c.g, c.b);
       }
     }
@@ -201,7 +228,7 @@ export class Island {
     }
     const last = (rings - 1) * segs;
     const tip = pos.length / 3;
-    pos.push(0, -14, 0);
+    pos.push(0, -16, 0);
     col.push(deep.r, deep.g, deep.b);
     for (let i = 0; i < segs; i++) {
       idx.push(last + i, tip, last + ((i + 1) % segs));
@@ -231,7 +258,18 @@ export class Island {
     const nrows = this.res;
     const ncols = this.res;
     const scale = { x: this.size, y: 1, z: this.size };
-    const desc = RAPIER.ColliderDesc.heightfield(nrows, ncols, this.heights, scale)
+    // Rapier indexes heightfields as heights[zIndex + xIndex * (ncols + 1)]
+    // (z is the fast axis), while this.island.heights is x-fast
+    // [xIndex + zIndex * (res + 1)]. Transpose a copy so the collider surface
+    // matches the visual terrain exactly (a transposed grid warps the island
+    // by meters and makes props/machines float or sink).
+    const rapierHeights = new Float32Array((nrows + 1) * (ncols + 1));
+    for (let zi = 0; zi <= ncols; zi++) {
+      for (let xi = 0; xi <= nrows; xi++) {
+        rapierHeights[zi + xi * (ncols + 1)] = this.heights[zi * (nrows + 1) + xi];
+      }
+    }
+    const desc = RAPIER.ColliderDesc.heightfield(nrows, ncols, rapierHeights, scale)
       .setTranslation(0, 0, 0)
       .setFriction(MATERIALS.ground.friction)
       .setRestitution(MATERIALS.ground.restitution)

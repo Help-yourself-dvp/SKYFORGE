@@ -75,8 +75,9 @@ export const BUILD_OVERLAP_SLOP = 0.04;
 export const VEHICLE = {
   steerAngle: 35 * Math.PI / 180,
   motorTorque: 48,
-  maxWheelSpeed: 28,
+  maxWheelSpeed: 9,
   handbrake: 18,
+  wheelTorque: 0.9,
   flipTime: 2.5,
   jointBreakImpulse: 920,
 };

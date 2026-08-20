@@ -111,7 +111,11 @@ export class Fauna {
     if (run) this.acc = 0;
     const player = this.game.player?.position;
     const machineFast = this.game.machine?.launched && Math.abs(this.game.machine.throttle) > 0.35;
-    const fruits = this.game.physics.sync.entities.filter((e) => e.kind === 'fruit' && e.body);
+    // Live fruit list: bodies can be removed mid-tick (an animal eats a fruit,
+    // the player collects it), so entries are pruned and never used after removal.
+    const fruits = this.game.physics.sync.entities.filter(
+      (e) => e.kind === 'fruit' && e.body && this.game.physics.sync.byId.has(e.id),
+    );
     const pond = this.game.world.main.pond;
 
     for (const a of this.animals) {
@@ -149,9 +153,15 @@ export class Fauna {
       dir.normalize().multiplyScalar(8);
       a.target.set(pos.x + dir.x, pos.y, pos.z + dir.z);
     } else if (a.state === 'seekFood' && fruits.length) {
-      let best = fruits[0];
+      let best = null;
       let bd = 1e9;
-      for (const f of fruits) {
+      for (let i = fruits.length - 1; i >= 0; i--) {
+        const f = fruits[i];
+        // Prune entries whose body was removed earlier in this same tick.
+        if (!f || !f.body || !this.game.physics.sync.byId.has(f.id)) {
+          fruits.splice(i, 1);
+          continue;
+        }
         const t = f.body.translation();
         const d = (t.x - pos.x) ** 2 + (t.z - pos.z) ** 2;
         if (d < bd) {
@@ -159,11 +169,14 @@ export class Fauna {
           best = f;
         }
       }
+      if (!best) return;
       const t = best.body.translation();
       a.target.set(t.x, t.y, t.z);
       if (bd < 1.2) {
         a.hunger = 0.1;
         this.game.resources.collectProp(best);
+        const ix = fruits.indexOf(best);
+        if (ix >= 0) fruits.splice(ix, 1);
       }
     } else if (a.state === 'seekWater') {
       a.target.set(pond.x + Math.sin(this.game.time) * 2, pond.level, pond.z);

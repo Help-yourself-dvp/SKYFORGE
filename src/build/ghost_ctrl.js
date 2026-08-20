@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { Ghost } from './ghost.js';
 import { takePart } from './inventory.js';
 
+const _gDir = new THREE.Vector3();
+const _gPos = new THREE.Vector3();
+
 export class BuildController {
   constructor(game) {
     this.game = game;
@@ -54,7 +57,7 @@ export class BuildController {
   update() {
     const g = this.game;
     const origin = g.cam.camera.position;
-    const dir = g.cam.camera.getWorldDirection(new THREE.Vector3());
+    const dir = g.cam.camera.getWorldDirection(_gDir);
     const hit = g.physics.raycast(
       { x: origin.x, y: origin.y, z: origin.z },
       { x: dir.x, y: dir.y, z: dir.z },
@@ -62,9 +65,11 @@ export class BuildController {
       g.player.body,
     );
     let pos = null;
-    if (hit) pos = new THREE.Vector3(hit.point.x, hit.point.y + 0.12, hit.point.z);
+    if (hit) pos = _gPos.set(hit.point.x, hit.point.y + 0.12, hit.point.z);
     else {
-      pos = g.player.position.clone().add(dir.setY(0).normalize().multiplyScalar(2.2));
+      dir.setY(0);
+      if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+      pos = _gPos.copy(g.player.position).addScaledVector(dir.normalize(), 2.2);
       pos.y = g.world.heightAt(pos.x, pos.z) + 0.4;
     }
     this.ghost.update(pos, g.machine.parts);

@@ -94,39 +94,47 @@ export class GameCamera {
     const len = dir.length();
     if (len < 0.2) return Math.max(0.55, len);
     dir.multiplyScalar(1 / len);
-    const hit = this.game.physics.raycast(
-      { x: from.x, y: from.y, z: from.z },
-      { x: dir.x, y: dir.y, z: dir.z },
-      len,
-      this.game.player?.body || null,
-    );
+    const exclude = this.game.player?.body || null;
+    const o = { x: from.x, y: from.y, z: from.z };
+    const d = { x: dir.x, y: dir.y, z: dir.z };
     let safe = len;
-    if (hit && hit.ent && (
-      hit.ent.kind === 'terrain'
-      || hit.ent.kind === 'workshop'
-      || hit.ent.kind === 'rock'
-      || hit.ent.kind === 'tree'
-      || hit.ent.kind === 'ore'
-    )) {
-      safe = Math.max(0.55, hit.toi - 0.32);
+    const hit = this.game.physics.raycast(o, d, len, exclude);
+    if (hit && hit.ent && this._blocksCamera(hit.ent)) {
+      safe = Math.max(0.5, hit.toi - 0.3);
+    }
+    // Backward probe: catches geometry that the forward ray started inside of
+    // or grazed past (e.g. the island's rim cliff at steep orbit angles).
+    const bHit = this.game.physics.raycast(
+      { x: desired.x, y: desired.y, z: desired.z },
+      { x: -d.x, y: -d.y, z: -d.z },
+      len,
+      exclude,
+    );
+    if (bHit && bHit.ent && this._blocksCamera(bHit.ent)) {
+      safe = Math.min(safe, Math.max(0.5, len - bHit.toi - 0.3));
     }
     return Math.min(maxDist, safe);
+  }
+
+  _blocksCamera(ent) {
+    const k = ent.kind;
+    return k === 'terrain'
+      || k === 'workshop'
+      || k === 'rock'
+      || k === 'ore'
+      || k === 'tree'
+      || k === 'crate'
+      || k === 'log'
+      || k === 'chunk'
+      || k === 'treeFall';
   }
 
   _keepAboveTerrain(target) {
     const h = this.game.world?.heightAt?.(this.current.x, this.current.z);
     if (h == null || !Number.isFinite(h)) return;
-    const minY = h + 0.85;
-    if (this.current.y < minY) {
-      this.current.y = minY;
-      const dx = this.current.x - target.x;
-      const dz = this.current.z - target.z;
-      const flat = Math.hypot(dx, dz);
-      if (flat > 0.2 && this.current.y > target.y + 0.4) {
-        /* stay on the player side of the surface */
-      }
-    }
-    if (this.current.y < target.y + 0.35) this.current.y = target.y + 0.35;
+    const minY = h + 0.7;
+    if (this.current.y < minY) this.current.y = minY;
+    if (this.current.y < target.y + 0.3) this.current.y = target.y + 0.3;
   }
 
   _occluders(target) {

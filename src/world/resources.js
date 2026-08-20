@@ -67,8 +67,8 @@ export class Resources {
     const crowns = [];
     if (type === 'pine') {
       for (let i = 0; i < 4; i++) {
-        const c = new THREE.Mesh(new THREE.ConeGeometry(1.15 - i * 0.18, 1.5, 7), leaf);
-        c.position.y = 2.2 + i * 0.85;
+        const c = new THREE.Mesh(new THREE.ConeGeometry(0.92 - i * 0.14, 1.35, 7), leaf);
+        c.position.y = 2.2 + i * 0.8;
         c.castShadow = true;
         g.add(c);
         crowns.push(c);
@@ -76,9 +76,9 @@ export class Resources {
     } else {
       const n = type === 'fruit' ? 5 : 6;
       for (let i = 0; i < n; i++) {
-        const c = new THREE.Mesh(new THREE.SphereGeometry(0.7 + (i % 3) * 0.12, 8, 6), leaf);
-        c.position.set(((i % 3) - 1) * 0.55, h - 0.4 + (i % 2) * 0.35, (Math.floor(i / 2) - 1) * 0.4);
-        c.scale.set(1.1, 0.75, 1);
+        const c = new THREE.Mesh(new THREE.SphereGeometry(0.56 + (i % 3) * 0.09, 8, 6), leaf);
+        c.position.set(((i % 3) - 1) * 0.5, h - 0.45 + (i % 2) * 0.3, (Math.floor(i / 2) - 1) * 0.36);
+        c.scale.set(1.05, 0.72, 1);
         c.castShadow = true;
         g.add(c);
         crowns.push(c);

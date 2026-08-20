@@ -3,6 +3,9 @@ import { HIT, PLAYER } from '../config.js';
 
 const _dir = new THREE.Vector3();
 const _from = new THREE.Vector3();
+const _camDir = new THREE.Vector3();
+const _fromP = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1.2, 0);
 
 export class Interact {
   constructor(game) {
@@ -21,8 +24,8 @@ export class Interact {
       return;
     }
     const origin = g.cam.camera.position;
-    const dir = g.cam.camera.getWorldDirection(new THREE.Vector3());
-    const fromPlayer = g.player.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+    const dir = g.cam.camera.getWorldDirection(_camDir);
+    const fromPlayer = _fromP.copy(g.player.position).add(_up);
     let hit = g.physics.raycast(
       { x: fromPlayer.x, y: fromPlayer.y, z: fromPlayer.z },
       { x: dir.x, y: dir.y, z: dir.z },

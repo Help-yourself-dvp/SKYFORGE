@@ -24,9 +24,9 @@ export class Flora {
 
   _grass(island, rng) {
     const quality = this.game.gfx.quality.grass;
-    const count = Math.floor(1600 * quality);
-    const geo = new THREE.PlaneGeometry(0.045, 0.2, 1, 2);
-    geo.translate(0, 0.1, 0);
+    const count = Math.floor(1150 * quality);
+    const geo = new THREE.PlaneGeometry(0.032, 0.155, 1, 2);
+    geo.translate(0, 0.077, 0);
     const mat = new THREE.ShaderMaterial({
       vertexShader: GRASS_VERT,
       fragmentShader: GRASS_FRAG,
@@ -56,11 +56,11 @@ export class Flora {
       if (island.zoneAt(x, z) === 'quarry' && rng.next() < 0.7) continue;
       dummy.position.set(x, y, z);
       dummy.rotation.set(0, rng.range(0, Math.PI * 2), 0);
-      dummy.scale.setScalar(rng.range(0.75, 1.15));
+      dummy.scale.setScalar(rng.range(0.7, 1.05));
       dummy.updateMatrix();
       mesh.setMatrixAt(n, dummy.matrix);
       phase[n] = rng.range(0, Math.PI * 2);
-      shade[n] = rng.range(0.2, 1);
+      shade[n] = rng.range(0.3, 1);
       n += 1;
     }
     mesh.count = n;

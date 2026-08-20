@@ -33,6 +33,8 @@ import { InventoryView } from './ui/inventory.js';
 
 const _amb = { x: 0, y: 7, z: 0 };
 const _ambV = { x: 0, y: 0.15, z: 0 };
+const _hintV = new THREE.Vector3();
+const _fireP = new THREE.Vector3();
 
 export class Game {
   constructor(canvas) {
@@ -132,6 +134,9 @@ export class Game {
     else {
       this.daynight.setTime(0.28);
     }
+    // Prime the broad phase so raycasts work from the very first frame
+    // (including the paused title screen).
+    this.physics.warm();
   }
 
   _waterSensor() {
@@ -203,12 +208,29 @@ export class Game {
   start() {
     if (this.raf) cancelAnimationFrame(this.raf);
     this.last = performance.now();
+    this._frameErrors = 0;
     const loop = (now) => {
       if (this.disposed) return;
       const dt = Math.min(0.05, Math.max(0, (now - this.last) / 1000));
       this.last = now;
-      this.update(dt);
-      this.render();
+      try {
+        this.update(dt);
+        this.render();
+      } catch (err) {
+        // A single bad frame must never kill the game on a phone: the RAF
+        // chain would stop and the app would appear frozen. Log once per
+        // unique message, keep looping.
+        const msg = (err && err.message) || String(err);
+        if (msg !== this._lastErrMsg) {
+          this._lastErrMsg = msg;
+          console.error('[SKY] frame error (loop kept alive):', err);
+          this.dbg?.noteError?.(err);
+        }
+        this._frameErrors += 1;
+        // Persistent failure (same subsystem every frame): try to drop to a
+        // plain render so the world stays visible instead of a black screen.
+        if (this._frameErrors > 90 && this.gfx?.post) this.gfx.post.enabled = false;
+      }
       this.raf = requestAnimationFrame(loop);
     };
     this.raf = requestAnimationFrame(loop);
@@ -306,6 +328,18 @@ export class Game {
     this.machine.throttle = 0;
     this.audio.setMotor(0);
     this.setState(STATES.EXPLORE);
+  }
+
+  // The machine fell off the world (seat below the island mass): stop it and
+  // bring the player back to the last safe spot instead of falling forever.
+  machineLost() {
+    this.machine.stop();
+    this.exitVehicle();
+    this.ui.flash();
+    this.toast('Телега ушла в небо.');
+    const p = this.player.lastSafe;
+    this.player.setPosition(p.x, p.y + 0.4, p.z);
+    this.saveNow();
   }
 
   lightsources() {
@@ -416,7 +450,10 @@ export class Game {
           this.toast(PROGRESS.firstRide.toast);
         }
         const seatP = this.machine.seat()?.mesh.position;
-        if (seatP) this.flora.crushNear(seatP, 1.3);
+        if (seatP) {
+          this.flora.crushNear(seatP, 1.3);
+          if (seatP.y < this.machine.lostY) this.machineLost();
+        }
       }
       this.interact.update();
       if (this.input.actionPressed) this.interact.primaryDown();
@@ -444,7 +481,7 @@ export class Game {
       : this.player.position;
     let hint = null;
     if (this.state === STATES.DRIVE && this.machine.seat()) {
-      hint = new THREE.Vector3(0, 0, 1).applyQuaternion(this.machine.seat().mesh.quaternion);
+      hint = _hintV.set(0, 0, 1).applyQuaternion(this.machine.seat().mesh.quaternion);
     }
     this.cam.update(dt, focus, hint);
     this.gfx.sky.update(dt, this.daynight, focus, this.gfx.camera.position);
@@ -479,7 +516,8 @@ export class Game {
       if (c.kind === 'campfire') {
         c.light.intensity = c.lit ? 1.6 + Math.sin(this.time * 7) * 0.25 : 0;
         if (c.lit && this.gfx.particles && Math.random() < dt * 8) {
-          this.gfx.particles.emit('fire', c.mesh.position.clone().add(new THREE.Vector3(0, 0.3, 0)), 2);
+          _fireP.copy(c.mesh.position).y += 0.3;
+          this.gfx.particles.emit('fire', _fireP, 2);
         }
       }
     }
