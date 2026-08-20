@@ -20,7 +20,7 @@ export class Gfx {
     this.qualityName = this.android ? 'MEDIUM' : 'HIGH';
     this.quality = QUALITY[this.qualityName];
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x9fb2b8, 30, 170);
+    this.scene.fog = new THREE.Fog(0xa8b8b8, 26, 190);
     this.camera = new THREE.PerspectiveCamera(52, 1, 0.18, 320);
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -30,10 +30,10 @@ export class Gfx {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 1.25;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.setClearColor(0x8fb0b8, 1);
+    this.renderer.setClearColor(0x8aa8b2, 1);
     this.dpr = Math.min(window.devicePixelRatio || 1, this.android ? 1.25 : 1.75);
     this.renderer.setPixelRatio(this.dpr);
     this.sky = new Sky(this.scene);

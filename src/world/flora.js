@@ -12,6 +12,9 @@ export class Flora {
     this.windUniform = { value: new THREE.Vector3() };
     this.playerUniform = { value: new THREE.Vector3() };
     this.timeUniform = { value: 0 };
+    this.sunElevUniform = { value: 0.8 };
+    this.sunColorUniform = { value: new THREE.Color(0xfff0c8) };
+    this.nightUniform = { value: 0 };
   }
 
   generate(island, rng) {
@@ -34,6 +37,9 @@ export class Flora {
         uTime: this.timeUniform,
         uWind: this.windUniform,
         uPlayer: this.playerUniform,
+        uSunElev: this.sunElevUniform,
+        uSunColor: this.sunColorUniform,
+        uNight: this.nightUniform,
       },
       vertexColors: false,
       side: THREE.DoubleSide,
@@ -216,6 +222,11 @@ export class Flora {
     this.timeUniform.value += dt;
     this.windUniform.value.copy(wind);
     if (player) this.playerUniform.value.copy(player);
+    if (this.game.daynight) {
+      this.sunElevUniform.value = this.game.daynight.sunDir.y;
+      this.sunColorUniform.value.copy(this.game.daynight.sunColor);
+      this.nightUniform.value = this.game.daynight.night;
+    }
     for (const p of this.plants) {
       if (!p.dirty) continue;
       p.dirty = false;

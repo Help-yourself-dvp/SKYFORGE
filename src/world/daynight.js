@@ -43,26 +43,28 @@ export class DayNight {
     const elev = this.sunDir.y;
     this.night = THREE.MathUtils.clamp(1 - (elev + 0.12) / 0.45, 0, 1);
 
-    const dawn = this._pulse(t, 0.22, 0.08);
-    const dusk = this._pulse(t, 0.78, 0.08);
+    const dawn = this._pulse(t, 0.22, 0.09);
+    const dusk = this._pulse(t, 0.78, 0.09);
     const day = THREE.MathUtils.clamp(elev, 0, 1);
 
-    this.zenith.setHex(0x1a2340).lerp(CA.setHex(0x6ea8c4), day);
-    this.horizon.setHex(0x2a2438);
-    if (dawn > 0) this.horizon.lerp(CB.setHex(0xf0b896), dawn);
-    if (dusk > 0) this.horizon.lerp(CC.setHex(0xc46a3a), dusk);
-    if (day > 0.2) this.horizon.lerp(CD.setHex(0xd8c4a0), (day - 0.2) * 0.8);
+    // Richer palette: deep indigo night -> clear azure day; warm earth ground.
+    this.zenith.setHex(0x141c38).lerp(CA.setHex(0x5f9cc0), day);
+    this.horizon.setHex(0x241f36);
+    if (dawn > 0) this.horizon.lerp(CB.setHex(0xf2b88e), dawn * 0.9);
+    if (dusk > 0) this.horizon.lerp(CC.setHex(0xc96a3e), dusk * 0.95);
+    if (day > 0.18) this.horizon.lerp(CD.setHex(0xe8d2a8), (day - 0.18) * 0.85);
 
-    this.sunColor.setHex(0xffe2b0);
-    if (dusk > 0.2) this.sunColor.lerp(CE.setHex(0xe09a4a), dusk);
+    this.sunColor.setHex(0xfff0c8);
+    if (dusk > 0.2) this.sunColor.lerp(CE.setHex(0xe8964a), dusk);
     if (dawn > 0.2) this.sunColor.lerp(CF.setHex(0xffc8a0), dawn);
 
-    this.sunIntensity = 0.22 + day * 1.15;
-    this.hemiIntensity = 0.62 + day * 0.72;
-    this.fillIntensity = 0.28 + day * 0.32;
-    this.fog.copy(this.horizon).lerp(CA.setHex(0x9fb2b8), 0.45);
-    this.zenith.lerp(CB.setHex(0x8ec4dc), 0.18);
-    this.horizon.lerp(CC.setHex(0xe6d2b0), 0.12);
+    this.sunIntensity = 0.2 + day * 1.25;
+    this.hemiIntensity = 0.6 + day * 0.8;
+    this.fillIntensity = 0.26 + day * 0.34;
+    this.ground.setHex(0x4e4232).lerp(CB.setHex(0x6a5a42), day * 0.6);
+    this.fog.copy(this.horizon).lerp(CA.setHex(0xa8bcbe), 0.5);
+    this.zenith.lerp(CB.setHex(0x8ec4dc), 0.16);
+    this.horizon.lerp(CC.setHex(0xe6d2b0), 0.1);
   }
 
   _pulse(t, c, w) {

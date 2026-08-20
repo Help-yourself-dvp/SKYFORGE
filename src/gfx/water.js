@@ -10,10 +10,14 @@ export class Water {
       uniforms: {
         uTime: { value: 0 },
         uWind: { value: new THREE.Vector2(0.4, 0.2) },
-        uDeep: { value: new THREE.Color(0x2a6270) },
-        uShallow: { value: new THREE.Color(0x6eb4a8) },
+        uDeep: { value: new THREE.Color(0x1e4452) },
+        uShallow: { value: new THREE.Color(0x4f9a8c) },
         uSunDir: { value: new THREE.Vector3(0.4, 0.8, 0.2) },
+        uSunColor: { value: new THREE.Color(0xffe2b0) },
         uCam: { value: new THREE.Vector3() },
+        uCenter: { value: new THREE.Vector3(pond.x, pond.level, pond.z) },
+        uRadius: { value: pond.radius },
+        uNight: { value: 0 },
       },
       transparent: true,
       depthWrite: false,
@@ -69,11 +73,13 @@ export class Water {
     return m;
   }
 
-  update(dt, wind, sunDir, cam) {
+  update(dt, wind, sunDir, cam, sunColor, night) {
     this.mat.uniforms.uTime.value += dt;
     this.mat.uniforms.uWind.value.set(wind.x, wind.z);
     if (sunDir) this.mat.uniforms.uSunDir.value.copy(sunDir);
     if (cam) this.mat.uniforms.uCam.value.copy(cam);
+    if (sunColor) this.mat.uniforms.uSunColor.value.copy(sunColor);
+    if (night != null) this.mat.uniforms.uNight.value = night;
     if (this.fallMat) this.fallMat.opacity = 0.38 + Math.sin(this.mat.uniforms.uTime.value * 3.2) * 0.06;
   }
 

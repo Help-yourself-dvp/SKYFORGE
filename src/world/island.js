@@ -106,6 +106,9 @@ export class Island {
     const COLOR_A = new THREE.Color();
     const COLOR_B = new THREE.Color();
     const COLOR_C = new THREE.Color();
+    const COLOR_D = new THREE.Color();
+    const COLOR_E = new THREE.Color();
+    const COLOR_F = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
@@ -114,21 +117,29 @@ export class Island {
       const zone = this.zoneAt(x, z);
       const slope = Math.abs(this.sample(x + 0.6, z) - this.sample(x - 0.6, z))
         + Math.abs(this.sample(x, z + 0.6) - this.sample(x, z - 0.6));
-      if (zone === 'wet') color.setHex(0x6a8a68);
-      else if (zone === 'quarry') color.setHex(0x9a9186);
-      else color.setHex(0x6f8a52);
-      if (slope > 1.6) color.setHex(0x8a7d6c);
-      if (y < this.pond.level + 0.25 && zone === 'wet') color.setHex(0x8a7a58);
+      // Zone palette: mossy meadow, damp reed-green wet zone, slate quarry.
+      const mottle = this.noise.n2(x * 0.13, z * 0.13);
+      if (zone === 'wet') {
+        color.setHex(0x5c7c56).lerp(COLOR_D.setHex(0x7a8a60), (mottle * 0.5 + 0.5) * 0.5);
+      } else if (zone === 'quarry') {
+        color.setHex(0x94897c).lerp(COLOR_D.setHex(0x7c7468), (mottle * 0.5 + 0.5) * 0.6);
+      } else {
+        color.setHex(0x52794a).lerp(COLOR_D.setHex(0x6b8a4a), (mottle * 0.5 + 0.5) * 0.55);
+      }
+      // Slope = exposed rock / soil (fake AO + readability of cliffs).
+      if (slope > 1.2) color.lerp(COLOR_E.setHex(0x8a7d6c), THREE.MathUtils.clamp((slope - 1.2) * 0.5, 0, 0.85));
+      if (slope > 2.6) color.lerp(COLOR_F.setHex(0x5c5348), THREE.MathUtils.clamp((slope - 2.6) * 0.4, 0, 0.7));
+      if (y < this.pond.level + 0.25 && zone === 'wet') color.setHex(0x7a6a50);
       const rr = Math.hypot(x, z);
-      // Rim: exposed soil. Beyond the rim: the tapering rocky underside mass.
+      // Rim: exposed ochre soil. Beyond the rim: the tapering rocky mass.
       const rimR = this.radius - 2.2;
       if (rr > this.radius - 8) color.lerp(COLOR_A.setHex(0x8a6a42), THREE.MathUtils.clamp((rr - (this.radius - 8)) / 6, 0, 1));
       if (rr > rimR) {
         const k = THREE.MathUtils.clamp((rr - rimR) / 6, 0, 1);
-        color.lerp(COLOR_B.setHex(0x5a4a3a), k * 0.7);
+        color.lerp(COLOR_B.setHex(0x5a4a3a), k * 0.75);
         color.lerp(COLOR_C.setHex(0x4a4440), k * k * 0.5);
       }
-      color.offsetHSL((this.noise.n2(x * 0.11, z * 0.11)) * 0.03, 0.04, (this.noise.n2(x * 0.2, z * 0.2)) * 0.08);
+      color.offsetHSL((this.noise.n2(x * 0.11, z * 0.11)) * 0.04, 0.05, (this.noise.n2(x * 0.2, z * 0.2)) * 0.1);
       col[i * 3] = color.r;
       col[i * 3 + 1] = color.g;
       col[i * 3 + 2] = color.b;
@@ -137,10 +148,10 @@ export class Island {
     geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.82,
-      metalness: 0.02,
-      emissive: new THREE.Color(0x243018),
-      emissiveIntensity: 0.07,
+      roughness: 0.85,
+      metalness: 0.0,
+      emissive: new THREE.Color(0x1c2a12),
+      emissiveIntensity: 0.1,
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;

@@ -30,25 +30,29 @@ export class Sky {
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 2;
-    this.sun.shadow.camera.far = 80;
-    this.sun.shadow.camera.left = -22;
-    this.sun.shadow.camera.right = 22;
-    this.sun.shadow.camera.top = 22;
-    this.sun.shadow.camera.bottom = -22;
-    this.sun.shadow.bias = -0.0005;
-    this.sun.shadow.normalBias = 0.04;
-    if ('intensity' in this.sun.shadow) this.sun.shadow.intensity = 0.42;
+    this.sun.shadow.camera.far = 90;
+    this.sun.shadow.camera.left = -26;
+    this.sun.shadow.camera.right = 26;
+    this.sun.shadow.camera.top = 26;
+    this.sun.shadow.camera.bottom = -26;
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.028;
+    if ('intensity' in this.sun.shadow) this.sun.shadow.intensity = 0.45;
     scene.add(this.sun);
     scene.add(this.sun.target);
 
     this.hemi = new THREE.HemisphereLight(0xb7d4e2, 0x6a5a44, 1.15);
     scene.add(this.hemi);
 
-    this.fill = new THREE.DirectionalLight(0xc8dce8, 0.48);
+    this.fill = new THREE.DirectionalLight(0xcfe0ea, 0.5);
     this.fill.castShadow = false;
     scene.add(this.fill);
 
-    this.amb = new THREE.AmbientLight(0xd8c8b0, 0.22);
+    this.rim = new THREE.DirectionalLight(0xffd9b0, 0.22);
+    this.rim.castShadow = false;
+    scene.add(this.rim);
+
+    this.amb = new THREE.AmbientLight(0xd8c8b0, 0.2);
     scene.add(this.amb);
 
     this.moon = new THREE.DirectionalLight(0x9bb0d0, 0.08);
@@ -111,24 +115,33 @@ export class Sky {
     this.sun.color.copy(day.sunColor);
     this.sun.intensity = day.sunIntensity;
     this.hemi.intensity = day.hemiIntensity;
-    this.hemi.color.setHex(0xb7d4e2).lerp(day.zenith, 0.35);
-    this.hemi.groundColor.setHex(0x7a6a52);
+    this.hemi.color.copy(day.zenith);
+    this.hemi.groundColor.copy(day.ground);
     this.fill.position.copy(focus).addScaledVector(sunDir, -24);
     this.fill.position.y = focus.y + 18;
     this.fill.intensity = day.fillIntensity || 0.4;
-    this.amb.intensity = 0.18 + (1 - day.night) * 0.1;
+    // Warm rim from behind the player: separates silhouettes from the sky.
+    this.rim.position.copy(focus).addScaledVector(sunDir, -30);
+    this.rim.position.y = focus.y + 6;
+    this.rim.intensity = (day.fillIntensity || 0.4) * 0.55;
+    this.rim.color.copy(day.sunColor);
+    this.amb.intensity = 0.16 + (1 - day.night) * 0.1;
     this.moon.position.copy(focus).addScaledVector(moonDir, 30);
-    this.moon.intensity = day.night * 0.22;
+    this.moon.intensity = day.night * 0.24;
 
     if (camPos) this.mesh.position.copy(camPos);
 
+    // Clouds tinted by the sky: white by day, peach at dawn/dusk, indigo at night.
+    V3D.copy(day.horizon).lerp(V3C.set(1, 1, 1), 0.55);
+    const cloudTint = V3D;
     for (const c of this._cloudPuffs) {
       c.position.x += dt * 0.35;
       if (c.position.x > 90) c.position.x = -90;
       c.position.y = c.userData.baseY + Math.sin(this.mat.uniforms.uTime.value * 0.2 + c.userData.phase) * 0.4;
+      c.material.color.copy(cloudTint);
       if (camPos && playerPos) {
         const between = this._cloudBetween(c.position, camPos, playerPos);
-        c.material.opacity = between ? 0.08 : (c.material === this._cloudMats[0] ? 0.24 : 0.16);
+        c.material.opacity = between ? 0.08 : (c.material === this._cloudMats[0] ? 0.26 : 0.17);
       }
     }
   }

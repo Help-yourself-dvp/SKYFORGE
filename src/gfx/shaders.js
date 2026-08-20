@@ -45,12 +45,20 @@ vec3 stars(vec3 dir, float night) {
 void main() {
   vec3 dir = normalize(vWorld);
   float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
-  vec3 col = mix(uHorizon, uZenith, pow(h, 0.85));
+  // Layered sky: zenith dome -> mid band -> warm horizon glow.
+  vec3 col = mix(uHorizon, uZenith, pow(h, 0.75));
+  col = mix(col, uHorizon, pow(1.0 - h, 2.2) * 0.45);
 
-  float sun = pow(max(dot(dir, normalize(uSunDir)), 0.0), 1400.0 / uSunSize);
-  float glow = pow(max(dot(dir, normalize(uSunDir)), 0.0), 7.0);
-  col += uSunColor * sun * 1.8;
-  col += uSunColor * glow * 0.1;
+  vec3 sd = normalize(uSunDir);
+  float sdot = max(dot(dir, sd), 0.0);
+  float sun = pow(sdot, 1600.0 / uSunSize);
+  // Warm disk + wide soft halo (halo dims with the sun below the horizon).
+  float halo = pow(sdot, 5.0);
+  col += uSunColor * sun * 2.2;
+  col += uSunColor * halo * 0.16 * clamp(sd.y * 1.6 + 0.4, 0.0, 1.0);
+  // Sun-lit haze band around the sun direction near the horizon.
+  float sunHaze = pow(sdot, 1.8) * pow(1.0 - abs(dir.y), 2.0);
+  col += uSunColor * sunHaze * 0.22;
 
   float moon = pow(max(dot(dir, normalize(uMoonDir)), 0.0), 900.0);
   col += vec3(0.72, 0.78, 0.92) * moon * uNight * 1.5;
@@ -58,7 +66,7 @@ void main() {
   col += stars(dir, uNight) * (uNight - 0.3) / 0.7;
 
   float haze = pow(1.0 - abs(dir.y), 3.0);
-  col += uHorizon * haze * 0.06;
+  col += uHorizon * haze * 0.08;
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -90,8 +98,12 @@ export const WATER_FRAG = /* glsl */ `
 uniform vec3 uDeep;
 uniform vec3 uShallow;
 uniform vec3 uSunDir;
+uniform vec3 uSunColor;
 uniform float uTime;
 uniform vec3 uCam;
+uniform vec3 uCenter;
+uniform float uRadius;
+uniform float uNight;
 varying vec3 vWorld;
 varying vec3 vNrm;
 varying vec2 vUv;
@@ -102,12 +114,18 @@ void main() {
   float fres = pow(1.0 - max(dot(n, view), 0.0), 3.0);
   float depth = smoothstep(0.0, 3.5, 1.6 - vWorld.y * 0.02);
   vec3 col = mix(uShallow, uDeep, depth);
-  float spec = pow(max(dot(reflect(-normalize(uSunDir), n), view), 0.0), 48.0);
-  float foam = smoothstep(0.72, 0.95, sin(vUv.x * 40.0 + uTime) * 0.5 + 0.5) * 0.12;
-  col += vec3(0.85, 0.92, 0.95) * spec * 0.55;
-  col += vec3(0.78, 0.86, 0.88) * foam;
-  col = mix(col, vec3(0.78, 0.88, 0.92), fres * 0.55);
-  gl_FragColor = vec4(col, 0.78 + fres * 0.18);
+  float spec = pow(max(dot(reflect(-normalize(uSunDir), n), view), 0.0), 64.0);
+  // Shore foam ring: soft froth near the pond edge, animated.
+  float d = distance(vWorld.xz, uCenter.xz);
+  float shore = smoothstep(uRadius - 1.8, uRadius - 0.3, d);
+  float foam = sin(vUv.x * 30.0 + uTime * 1.5) * 0.5 + 0.5;
+  foam = smoothstep(0.45, 0.9, foam) * shore * 0.5;
+  col += uSunColor * spec * 0.5 * (1.0 - uNight * 0.85);
+  col += vec3(0.85, 0.92, 0.94) * foam;
+  col = mix(col, vec3(0.75, 0.86, 0.9), fres * 0.5);
+  col *= mix(0.55, 1.0, 1.0 - uNight * 0.75);
+  float a = 0.8 + fres * 0.2;
+  gl_FragColor = vec4(col, a);
 }
 `;
 
@@ -118,11 +136,13 @@ uniform vec3 uPlayer;
 attribute float aPhase;
 attribute float aShade;
 varying float vShade;
+varying float vHeight;
 
 void main() {
   vShade = aShade;
   vec3 p = position;
   float h = uv.y;
+  vHeight = h;
   vec3 wpos = (instanceMatrix * vec4(p, 1.0)).xyz;
   float dist = length(wpos.xz - uPlayer.xz);
   float part = smoothstep(1.8, 0.2, dist) * 0.24;
@@ -141,13 +161,22 @@ void main() {
 `;
 
 export const GRASS_FRAG = /* glsl */ `
+uniform float uSunElev;
+uniform vec3 uSunColor;
+uniform float uNight;
 varying float vShade;
+varying float vHeight;
 void main() {
-  // Deep conifer green with ochre variation; darker than the old blades so
-  // the field never reads as white strokes against the bright sky.
+  // Meadow palette: deep conifer green -> dry ochre, mottled per blade.
   float mixK = clamp(vShade * 0.6, 0.0, 1.0);
-  vec3 col = mix(vec3(0.30, 0.36, 0.20), vec3(0.46, 0.40, 0.22), mixK);
-  col *= 0.70 + vShade * 0.30;
+  vec3 col = mix(vec3(0.27, 0.34, 0.18), vec3(0.47, 0.41, 0.22), mixK);
+  // Fake AO: darker toward the ground.
+  col *= mix(0.72, 1.0, clamp(vHeight * 1.8, 0.0, 1.0));
+  // Sun-facing brightness (blades stand up, so sun elevation lights all).
+  float sun = clamp(uSunElev * 1.4 + 0.05, 0.0, 1.0);
+  col *= mix(0.55, 1.0, sun);
+  col += uSunColor * sun * 0.10 * clamp(vHeight, 0.0, 1.0);
+  col *= mix(0.5, 1.0, 1.0 - uNight * 0.6);
   gl_FragColor = vec4(col, 1.0);
 }
 `;

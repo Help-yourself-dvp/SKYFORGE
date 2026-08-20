@@ -510,7 +510,7 @@ export class Game {
       this.enemies.update(dt);
       this.workshop.update(dt, this.wind.vector, this.daynight.night);
       this.survival.update(dt);
-      this.gfx.water?.update(dt, this.wind.vector, this.daynight.sunDir, this.gfx.camera.position);
+      this.gfx.water?.update(dt, this.wind.vector, this.daynight.sunDir, this.gfx.camera.position, this.daynight.sunColor, this.daynight.night);
       this.gfx.particles?.update(dt, this.wind.vector, this.daynight.night, this.weather.rain);
       this._ambient(dt);
       this._horizon();
@@ -532,8 +532,8 @@ export class Game {
     if (this.gfx.scene.fog) {
       this.gfx.scene.fog.color.copy(this.daynight.fog);
       if ('near' in this.gfx.scene.fog) {
-        this.gfx.scene.fog.near = 30 + this.daynight.night * 6;
-        this.gfx.scene.fog.far = 168 - this.weather.wet * 18;
+        this.gfx.scene.fog.near = 26 + this.daynight.night * 8;
+        this.gfx.scene.fog.far = 190 - this.weather.wet * 20;
       }
     }
     this.physics.sync.apply(this.physics.alpha);
